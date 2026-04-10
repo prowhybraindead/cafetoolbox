@@ -1,0 +1,39 @@
+{
+  "name": "@cafetoolbox/dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "next lint",
+    "format": "prettier --write .",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next node_modules"
+  },
+  "dependencies": {
+    "@cafetoolbox/shared": "workspace:*",
+    "@cafetoolbox/supabase": "workspace:*",
+    "@cafetoolbox/ui": "workspace:*",
+    "next": "^16.2.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-dropdown-menu": "^2.1.6",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.2.0"
+  },
+  "devDependencies": {
+    "@cafetoolbox/eslint-config": "workspace:*",
+    "@cafetoolbox/prettier-config": "workspace:*",
+    "@cafetoolbox/tsconfig": "workspace:*",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.0"
+  }
+}

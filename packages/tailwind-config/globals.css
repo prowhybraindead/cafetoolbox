@@ -1,0 +1,66 @@
+/*
+ * CafeToolbox - Global CSS
+ * Based on DESIGN.md design system
+ */
+
+@import "tailwindcss";
+
+/* ===== Custom Theme via Tailwind v4 @theme ===== */
+@theme {
+  --color-cream: #FAFAF5;
+  --color-charcoal: #1A1A1A;
+  --color-charcoal-light: #2C2C2C;
+  --color-charcoal-muted: #6B6B6B;
+  --color-neon: #39FF14;
+  --color-neon-dim: #2BD610;
+  --color-neon-ghost: rgba(57,255,20,0.08);
+  --color-neon-ghost-mid: rgba(57,255,20,0.15);
+  --color-border-main: #E8E6E0;
+  --color-border-light: #F0EEEA;
+
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* ===== Base Styles ===== */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-charcoal);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Text Selection ===== */
+::selection {
+  background: var(--color-neon);
+  color: var(--color-charcoal);
+}
+
+/* ===== Custom Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+::-webkit-scrollbar-thumb {
+  background: #D4D2CC;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neon);
+}
+
+/* ===== Animations ===== */
+@keyframes pulse-neon {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse-neon {
+  animation: pulse-neon 2s ease-in-out infinite;
+}

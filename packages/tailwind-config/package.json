@@ -1,0 +1,15 @@
+{
+  "name": "@cafetoolbox/tailwind-config",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./tailwind.config.ts",
+    "./postcss": "./postcss.config.js",
+    "./globals.css": "./globals.css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^4.1.0",
+    "@tailwindcss/postcss": "^4.1.0"
+  }
+}

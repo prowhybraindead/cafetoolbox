@@ -1,0 +1,24 @@
+/**
+ * Button Styles - Neon slide animation
+ * Matches DESIGN.md Section 5.4
+ */
+
+.neon-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #39FF14;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  z-index: 0;
+}
+
+.neon-btn:hover::before {
+  transform: scaleX(1);
+}
+
+.neon-btn span {
+  position: relative;
+  z-index: 1;
+}
