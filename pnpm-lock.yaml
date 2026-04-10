@@ -84,6 +84,9 @@ importers:
       '@cafetoolbox/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@cafetoolbox/supabase':
+        specifier: workspace:*
+        version: link:../../packages/supabase
       '@cafetoolbox/ui':
         specifier: workspace:*
         version: link:../../packages/ui
