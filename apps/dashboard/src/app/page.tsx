@@ -1,6 +1,7 @@
 "use client";
 
 import Link from 'next/link';
+import { BrandMark } from '@cafetoolbox/ui';
 
 export default function HomePage() {
   return (
@@ -9,12 +10,8 @@ export default function HomePage() {
       <nav className="border-b border-borderMain bg-white">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-neon rounded-lg flex items-center justify-center">
-              <span
-                className="iconify text-charcoal"
-                data-icon="lucide:terminal"
-                data-width="20"
-              />
+            <div className="rounded-2xl bg-charcoal p-1.5 shadow-[0_10px_30px_rgba(18,18,18,0.15)] ring-1 ring-black/5">
+              <BrandMark className="shrink-0 rounded-xl" size={40} />
             </div>
             <span className="text-xl font-semibold tracking-tight">CafeToolbox</span>
           </div>
@@ -178,13 +175,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-neon rounded-lg flex items-center justify-center">
-                <span
-                  className="iconify text-charcoal"
-                  data-icon="lucide:terminal"
-                  data-width="16"
-                />
-              </div>
+              <BrandMark className="shrink-0 rounded-xl shadow-[0_8px_24px_rgba(18,18,18,0.12)]" size={32} />
               <span className="font-semibold text-charcoal">CafeToolbox</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-charcoalMuted">

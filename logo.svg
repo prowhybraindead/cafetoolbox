@@ -1,0 +1,37 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CafeToolbox Logo</title>
+  <desc id="desc">A neon toolbox mark with a terminal-inspired cutout and status pulse.</desc>
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#121212" />
+      <stop offset="1" stop-color="#1F1F1F" />
+    </linearGradient>
+    <linearGradient id="accent" x1="144" y1="136" x2="368" y2="376" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B6FF4D" />
+      <stop offset="1" stop-color="#48E5A8" />
+    </linearGradient>
+    <linearGradient id="stroke" x1="156" y1="160" x2="356" y2="352" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5F7FA" stop-opacity="0.95" />
+      <stop offset="1" stop-color="#F5F7FA" stop-opacity="0.62" />
+    </linearGradient>
+    <filter id="glow" x="52" y="52" width="408" height="408" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.713726 0 0 0 0 1 0 0 0 0 0.301961 0 0 0 0.35 0" result="greenGlow" />
+      <feBlend in="SourceGraphic" in2="greenGlow" mode="screen" />
+    </filter>
+  </defs>
+  <rect x="40" y="40" width="432" height="432" rx="112" fill="url(#bg)" />
+  <rect x="56" y="56" width="400" height="400" rx="96" stroke="#343434" stroke-width="2" opacity="0.8" />
+  <g filter="url(#glow)">
+    <path d="M140 190C140 179.059 148.059 170 158 170H354C363.941 170 372 179.059 372 190V266C372 275.941 363.941 284 354 284H158C148.059 284 140 275.941 140 266V190Z" fill="#1A1A1A" stroke="url(#stroke)" stroke-width="6" />
+    <path d="M188 170V150C188 141.163 195.163 134 204 134H308C316.837 134 324 141.163 324 150V170" stroke="url(#accent)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M208 226H304" stroke="url(#accent)" stroke-width="14" stroke-linecap="round" />
+    <path d="M176 312H336" stroke="#E9EEF2" stroke-opacity="0.18" stroke-width="10" stroke-linecap="round" />
+    <path d="M176 348H292" stroke="#E9EEF2" stroke-opacity="0.18" stroke-width="10" stroke-linecap="round" />
+    <circle cx="344" cy="344" r="20" fill="url(#accent)" />
+    <path d="M333 344H355" stroke="#101010" stroke-width="8" stroke-linecap="round" />
+    <path d="M344 333V355" stroke="#101010" stroke-width="8" stroke-linecap="round" />
+    <circle cx="168" cy="344" r="18" fill="#121212" stroke="url(#accent)" stroke-width="6" />
+    <path d="M162 344L168 350L176 338" stroke="#B6FF4D" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>

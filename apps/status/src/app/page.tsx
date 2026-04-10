@@ -1,5 +1,6 @@
-import { AlertTriangle, CheckCircle, Clock3, Github, Signal, Terminal } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock3, Github, Signal } from "lucide-react";
 import { createServerClient } from "@cafetoolbox/supabase";
+import { BrandMark } from "@cafetoolbox/ui";
 
 type ServiceRow = {
   id: string;
@@ -182,8 +183,8 @@ export default async function StatusPage() {
       <div className="relative mx-auto max-w-6xl px-6 py-10 lg:py-12">
         <header className="flex flex-col gap-6 border-b border-borderLight pb-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-charcoal">
-              <Terminal className="h-6 w-6 text-neon" />
+            <div className="rounded-2xl bg-charcoal p-1.5 shadow-[0_10px_30px_rgba(18,18,18,0.15)] ring-1 ring-black/5">
+              <BrandMark className="h-12 w-12 shrink-0 rounded-xl" size={48} />
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-charcoalMuted">Public Status</p>
@@ -192,7 +193,7 @@ export default async function StatusPage() {
           </div>
 
           <a
-            href="https://github.com"
+            href="https://github.com/prowhybraindead/cafetoolbox"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-full border border-borderMain bg-white px-4 py-2 text-sm font-medium text-charcoal transition-colors hover:border-neon"

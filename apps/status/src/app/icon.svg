@@ -1,0 +1,25 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CafeToolbox Status Icon</title>
+  <desc id="desc">A public status mark with a pulse ring and check signal.</desc>
+  <defs>
+    <linearGradient id="bg" x1="96" y1="64" x2="416" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#121212" />
+      <stop offset="1" stop-color="#1F1F1F" />
+    </linearGradient>
+    <linearGradient id="accent" x1="144" y1="136" x2="368" y2="376" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B6FF4D" />
+      <stop offset="1" stop-color="#48E5A8" />
+    </linearGradient>
+    <linearGradient id="pulse" x1="156" y1="160" x2="356" y2="352" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5F7FA" stop-opacity="0.95" />
+      <stop offset="1" stop-color="#F5F7FA" stop-opacity="0.62" />
+    </linearGradient>
+  </defs>
+  <rect x="40" y="40" width="432" height="432" rx="112" fill="url(#bg)" />
+  <circle cx="256" cy="256" r="132" stroke="url(#pulse)" stroke-width="18" opacity="0.55" />
+  <circle cx="256" cy="256" r="88" fill="#171717" stroke="url(#accent)" stroke-width="10" />
+  <path d="M214 256L242 284L300 226" stroke="url(#accent)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="368" cy="144" r="18" fill="url(#accent)" />
+  <path d="M368 124V164" stroke="#101010" stroke-width="8" stroke-linecap="round" />
+  <path d="M348 144H388" stroke="#101010" stroke-width="8" stroke-linecap="round" />
+</svg>

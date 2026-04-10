@@ -7,3 +7,6 @@
 
 // Lib
 export { cn } from "./lib/cn";
+
+// Components
+export { BrandMark } from "./components/brand-mark";
