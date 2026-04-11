@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle, Clock3, Github, Signal } from "lucide-react";
 import { createServerClient } from "@cafetoolbox/supabase";
 import { BrandMark } from "@cafetoolbox/ui";
-import { TimezoneClocks } from "../../components/timezone-clocks";
+import { TimezoneClocks } from "../components/timezone-clocks";
 
 type ServiceRow = {
   id: string;
