@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## [0.4.0-beta] - 2026-04-11
+
+- **Major feature**: Real-time service health monitoring via heartbeat logs:
+  - Added `service_heartbeats` table to track health check results (status, response_time, errors)
+  - Added `service_health_config` table for admin-configurable health check endpoints
+  - Status page uptime % now calculated from 24h heartbeat data (actual monitoring, not static)
+- New API endpoints:
+  - `POST /api/health-check` - Internal endpoint for worker scripts to record heartbeats
+  - `GET /api/health` - Quick health check for external monitors
+  - `GET /api/services/health` - Public real-time service health with uptime % and response times
+- Created health-check-worker Node.js script for periodic health checks
+- New RPC functions: `get_service_health_status()`, `calculate_service_uptime()` for real uptime calculation
+- Status page now shows:
+  - Real uptime % calculated from heartbeats (not seed values)
+  - Response time (ms) for each service
+  - Last checked timestamp for each service
+- Added migrations:
+  - `0012_add_heartbeat_monitoring.sql` - Schema, RLS, and helper functions
+  - `0013_seed_health_check_config.sql` - Default health check configuration
+- Implemented Vercel Cron automation:
+  - `vercel.json` - Cron job schedule (every 5 minutes): `/api/crons/health-check`
+  - `apps/dashboard/src/app/api/crons/health-check/route.ts` - Cron handler with parallel health checks
+  - Auto-fetches health check configs from database
+  - Records heartbeats to `service_heartbeats` table
+  - Requires environment variables: `HEALTH_CHECK_API_SECRET`, `CRON_SECRET`
+
 ## [0.3.2-beta] - 2026-04-11
 
 - Normalised all status page timestamps to UTC with explicit `(UTC)` suffix for clarity.

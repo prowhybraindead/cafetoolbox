@@ -12,11 +12,17 @@ CafeToolbox is a monorepo platform with a private admin dashboard, a public stat
   - admin user management (create, edit, role update, delete)
   - tool and category administration
   - profile management and user password change
+  - **New**: Health check configuration & monitoring (admin dashboard for service endpoints)
 - Status app is operational with:
-  - live Supabase-backed service uptime and incident tracking
-  - all timestamps normalised to UTC with explicit suffix
-  - multi-timezone clock wall (Vercel EST/EDT, UTC+0, VN UTC+7) updating in real time
+  - **Real-time health monitoring**: Uptime % calculated from 24h heartbeat data
+  - All timestamps normalised to UTC with explicit suffix
+  - Multi-timezone clock wall (Vercel EST/EDT, UTC+0, VN UTC+7) updating in real time
+  - Service response times and last check timestamps displayed
 - Supabase database/RLS is consolidated under unified migration `0011`.
+- Health monitoring infrastructure ready:
+  - Heartbeat tables, RLS policies, and RPC functions deployed
+  - Health check worker script included (manual or Cron-based execution)
+  - Public and internal health check APIs configured
 - Password reset flow routes now exist:
   - `/forgot-password`
   - `/auth/callback`
@@ -111,11 +117,13 @@ Protected routes:
 
 ## Database And Migration Workflow
 
-Use unified path only.
+Use unified path + new monitoring migrations.
 
-Primary migration:
+Primary migrations (apply in order):
 
-- `packages/supabase/migrations/0011_rebuild_schema_and_rls_unified.sql`
+1. `packages/supabase/migrations/0011_rebuild_schema_and_rls_unified.sql` - Core schema
+2. `packages/supabase/migrations/0012_add_heartbeat_monitoring.sql` - Health monitoring tables
+3. `packages/supabase/migrations/0013_seed_health_check_config.sql` - Default configs
 
 Runbook:
 
@@ -127,7 +135,84 @@ Mandatory preflight gate command:
 node scripts/supabase-phase1-preflight.mjs
 ```
 
-If preflight passes, apply `0011` in Supabase SQL Editor as one full script.
+If preflight passes, apply migrations in Supabase SQL Editor.
+
+## Health Monitoring
+
+### Overview
+
+CafeToolbox includes real-time health monitoring:
+
+- **Heartbeat logs**: Each service check is logged with status, response time, and any errors
+- **Uptime calculation**: Status page shows uptime % calculated from 24h heartbeat data
+- **Public APIs**: Health endpoints can be called by external monitors (e.g., Uptime Robot, Pingdom)
+
+### Running Health Checks
+
+The health check worker script is included but requires manual setup:
+
+#### Option 1: Vercel Cron Jobs (Recommended for Vercel deployment)
+
+Add to `vercel.json`:
+
+```json
+{
+  "crons": [
+    {
+      "path": "/api/crons/health-check",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
+```
+
+Create `apps/dashboard/src/app/api/crons/health-check/route.ts` (calls health-check-worker).
+
+#### Option 2: External Cron Service
+
+Use services like:
+- **GitHub Actions**: Free, reliable for scheduled tasks
+- **Easy Cron**: Free external Cron service
+- **Haraka**: Node.js cron runner
+
+Call health check endpoint periodically:
+
+```bash
+curl -X POST https://cafetoolbox.app/api/health-check \
+  -H "X-Health-Check-Token: $HEALTH_CHECK_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"service_id": "uuid", "is_healthy": true, "response_time_ms": 145}'
+```
+
+#### Option 3: Manual/Local Script
+
+```bash
+HEALTH_CHECK_API_SECRET=your_secret DASHBOARD_BASE_URL=https://cafetoolbox.app \
+  node scripts/health-check-worker.mjs
+```
+
+### Environment Variables
+
+For health checking:
+
+```env
+HEALTH_CHECK_API_SECRET=<secret-token-for-health-check-endpoint>
+DASHBOARD_BASE_URL=https://cafetoolbox.app (for health check worker)
+```
+
+### Health Endpoints
+
+- `GET /api/health` - Quick health check (returns JSON status)
+- `POST /api/health-check` - Record heartbeat (internal, requires token)
+- `GET /api/services/health` - Real-time service health with uptime % (public)
+
+### Configuring Health Checks
+
+Admin users can configure health check endpoints in the database:
+
+- **Table**: `service_health_config`
+- **Fields**: `health_check_url`, `method`, `expected_status_code`, `timeout_ms`, `check_interval_seconds`, `enabled`
+- **View**: Will be added to admin dashboard in Phase 3
 
 ## Authentication And Password Flows
 

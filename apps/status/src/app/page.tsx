@@ -11,6 +11,14 @@ type ServiceRow = {
   updated_at?: string | null;
 };
 
+type ServiceHealthRow = {
+  is_healthy: boolean;
+  last_checked_at: string;
+  last_response_time_ms: number | null;
+  uptime_24h: number;
+  consecutive_failures: number;
+};
+
 type IncidentRow = {
   id: string;
   title: string;
@@ -128,6 +136,7 @@ function pickOverallState(services: ServiceRow[], incidents: IncidentRow[]) {
 export default async function StatusPage() {
   const supabase = await createServerClient();
 
+  // Fetch services, incidents, and incident updates in parallel
   const [servicesResult, incidentsResult, updatesResult] = await Promise.all([
     supabase
       .from("services")
@@ -149,12 +158,46 @@ export default async function StatusPage() {
   const incidents = (incidentsResult.data ?? []) as IncidentRow[];
   const updates = (updatesResult.data ?? []) as IncidentUpdateRow[];
 
+  // Fetch real health status from heartbeats for each service
+  const servicesWithHealth = await Promise.all(
+    services.map(async (service) => {
+      const { data: healthData, error: healthError } = await supabase
+        .rpc("get_service_health_status", {
+          service_uuid: service.id,
+        } as any)
+        .single();
+
+      if (healthError) {
+        console.warn(`[status-page] Health check error for ${service.name}:`, healthError);
+        // Fallback: use seed uptime if RPC fails
+        return {
+          ...service,
+          uptime_24h: Number(service.uptime ?? 100),
+          is_healthy: service.status === "operational",
+          last_checked_at: null,
+          response_time_ms: null,
+        };
+      }
+
+      const health = healthData as ServiceHealthRow | null;
+      return {
+        ...service,
+        uptime_24h: health?.uptime_24h ?? Number(service.uptime ?? 100),
+        is_healthy: health?.is_healthy ?? service.status === "operational",
+        last_checked_at: health?.last_checked_at ?? null,
+        response_time_ms: health?.last_response_time_ms ?? null,
+      };
+    })
+  );
+
+  // Calculate real average uptime from heartbeat data
   const averageUptime =
-    services.length > 0
-      ? services.reduce((total, service) => total + Number(service.uptime ?? 0), 0) / services.length
+    servicesWithHealth.length > 0
+      ? servicesWithHealth.reduce((total, service) => total + Number(service.uptime_24h ?? 0), 0) /
+        servicesWithHealth.length
       : 0;
 
-  const operationalServices = services.filter((service) => service.status === "operational").length;
+  const operationalServices = servicesWithHealth.filter((s) => s.is_healthy).length;
   const openIncidents = incidents.filter((incident) => incident.status !== "resolved").length;
   const overallState = pickOverallState(services, incidents);
   const OverallIcon = overallState.icon;
@@ -168,8 +211,9 @@ export default async function StatusPage() {
     return accumulator;
   }, {});
 
+  // Collect recent timestamps from services (heartbeats), incidents, and updates
   const recentTimestamps = [
-    ...services.map((service) => service.updated_at),
+    ...servicesWithHealth.filter((s) => s.last_checked_at).map((s) => s.last_checked_at),
     ...incidents.map((incident) => incident.updated_at ?? incident.resolved_at ?? incident.started_at),
     ...updates.map((update) => update.created_at),
   ].filter((value): value is string => Boolean(value));
@@ -220,12 +264,12 @@ export default async function StatusPage() {
 
             <div className="mt-6 grid gap-6 md:grid-cols-3">
               <div>
-                <p className="text-sm text-charcoalMuted">Uptime trung bình</p>
+                <p className="text-sm text-charcoalMuted">Uptime trung bình (24h)</p>
                 <p className="mt-2 text-4xl font-semibold tracking-tight">{formatPercent(averageUptime)}</p>
               </div>
               <div>
                 <p className="text-sm text-charcoalMuted">Dịch vụ hoạt động</p>
-                <p className="mt-2 text-4xl font-semibold tracking-tight">{operationalServices}/{services.length || 0}</p>
+                <p className="mt-2 text-4xl font-semibold tracking-tight">{operationalServices}/{servicesWithHealth.length || 0}</p>
               </div>
               <div>
                 <p className="text-sm text-charcoalMuted">Sự cố đang mở</p>
@@ -234,8 +278,8 @@ export default async function StatusPage() {
             </div>
 
             <p className="mt-6 max-w-2xl text-sm leading-6 text-charcoalMuted">
-              Trang này đọc trực tiếp dữ liệu công khai từ bảng <span className="font-medium text-charcoal">services</span> và <span className="font-medium text-charcoal">incidents</span>.
-              Mỗi service có uptime riêng, trạng thái riêng, và phần sự cố sẽ hiển thị lịch sử cập nhật gần nhất.
+              Trang này đọc trực tiếp dữ liệu công khai từ <span className="font-medium text-charcoal">services</span> và <span className="font-medium text-charcoal">service_heartbeats</span> (monitoring thực tế).
+              Uptime được tính từ các lần kiểm tra health check trong 24 giờ qua. Incidents lịch sử của các sự cố được ghi nhận.
             </p>
           </div>
 
@@ -259,27 +303,35 @@ export default async function StatusPage() {
         <section className="mt-10 rounded-3xl border border-borderMain bg-white p-8">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Uptime theo từng phần</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Uptime theo từng phần (24h)</h2>
               <p className="mt-2 text-sm text-charcoalMuted">
-                Hiện trạng uptime được lấy trực tiếp từ từng service. Nếu muốn lịch sử theo ngày/giờ, cần thêm bảng heartbeat hoặc snapshot riêng.
+                Uptime được tính từ các lần health check qua heartbeat logs. Mỗi check được ghi lại và tính % uptime thực tế.
               </p>
             </div>
             <div className="rounded-full border border-borderLight bg-charcoal/5 px-3 py-1 text-sm text-charcoalMuted">
-              {services.length} services
+              {servicesWithHealth.length} services
             </div>
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
-            {services.map((service) => {
-              const copy = serviceStatusCopy[service.status];
-              const uptimeValue = Number(service.uptime ?? 0);
+            {servicesWithHealth.map((service) => {
+              const statusKey = service.is_healthy ? "operational" : "degraded";
+              const copy = serviceStatusCopy[statusKey];
+              const uptimeValue = Number(service.uptime_24h ?? 0);
 
               return (
                 <article key={service.id} className="rounded-2xl border border-borderLight p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <h3 className="text-lg font-semibold">{service.name}</h3>
-                      <p className="mt-1 text-sm text-charcoalMuted">Uptime hiện tại: {formatPercent(uptimeValue)}</p>
+                      <p className="mt-1 text-sm text-charcoalMuted">
+                        Uptime 24h: {formatPercent(uptimeValue)}{service.response_time_ms ? ` · ${service.response_time_ms}ms` : ""}
+                      </p>
+                      {service.last_checked_at ? (
+                        <p className="mt-1 text-xs text-charcoalMuted">
+                          Kiểm tra lần cuối: {formatDateTime(service.last_checked_at)}
+                        </p>
+                      ) : null}
                     </div>
                     <span className={`rounded-full border px-3 py-1 text-xs font-medium ${copy.badge}`}>
                       {copy.label}
@@ -301,7 +353,7 @@ export default async function StatusPage() {
               );
             })}
 
-            {services.length === 0 ? (
+            {servicesWithHealth.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-borderLight p-8 text-center text-charcoalMuted lg:col-span-2">
                 Chưa có service nào được seed vào Supabase.
               </div>
