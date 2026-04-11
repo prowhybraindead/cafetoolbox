@@ -13,6 +13,16 @@ type CookieItem = {
   options?: Record<string, unknown>;
 };
 
+const AUTH_COOKIE_DOMAIN = process.env.NEXT_PUBLIC_AUTH_COOKIE_DOMAIN;
+
+function resolveCookieDomain(domain: string | undefined) {
+  if (!domain) return undefined;
+  if (domain === "localhost" || domain === "127.0.0.1") {
+    return undefined;
+  }
+  return domain;
+}
+
 function toCookieString(
   name: string,
   value: string,
@@ -43,6 +53,8 @@ function toCookieString(
 }
 
 export function createClient() {
+  const cookieDomain = resolveCookieDomain(AUTH_COOKIE_DOMAIN);
+
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -67,11 +79,25 @@ export function createClient() {
             return;
           }
           cookiesToSet.forEach(({ name, value, options }) => {
-            document.cookie = toCookieString(
-              name,
-              value,
-              (options ?? {}) as Record<string, unknown>
-            );
+            const mergedOptions = {
+              ...(options ?? {}),
+              path: "/",
+              sameSite: "lax",
+              secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
+              ...(cookieDomain ? { domain: cookieDomain } : {}),
+            } as Record<string, unknown>;
+
+            if (cookieDomain) {
+              // Remove old host-only cookie variant to prevent duplicate auth cookies in requests.
+              document.cookie = toCookieString(name, "", {
+                path: "/",
+                maxAge: 0,
+                sameSite: "lax",
+                secure: mergedOptions.secure,
+              });
+            }
+
+            document.cookie = toCookieString(name, value, mergedOptions);
           });
         },
       },

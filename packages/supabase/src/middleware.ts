@@ -72,6 +72,16 @@ export async function updateSession(
               path: "/",
             };
 
+            if (cookieDomain) {
+              // Clear any host-only cookie variant to avoid duplicate cookie header growth.
+              supabaseResponse.cookies.set(name, "", {
+                maxAge: 0,
+                path: "/",
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+              });
+            }
+
             supabaseResponse.cookies.set(name, value, {
               ...cookieOptions,
               ...(cookieDomain ? { domain: cookieDomain } : {}),

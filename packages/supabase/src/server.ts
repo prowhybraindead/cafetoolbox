@@ -62,6 +62,15 @@ export async function createClient(options: ServerClientOptions = {}) {
                 path: "/",
               };
 
+              if (cookieDomain) {
+                cookieStore.set(name, "", {
+                  maxAge: 0,
+                  path: "/",
+                  sameSite: "lax",
+                  secure: process.env.NODE_ENV === "production",
+                });
+              }
+
               cookieStore.set(name, value, {
                 ...cookieOptions,
                 ...(cookieDomain ? { domain: cookieDomain } : {}),
@@ -116,6 +125,15 @@ export async function createAdminClientWithOptions(
                 secure: process.env.NODE_ENV === "production",
                 path: "/",
               };
+
+              if (cookieDomain) {
+                cookieStore.set(name, "", {
+                  maxAge: 0,
+                  path: "/",
+                  sameSite: "lax",
+                  secure: process.env.NODE_ENV === "production",
+                });
+              }
 
               cookieStore.set(name, value, {
                 ...cookieOptions,
