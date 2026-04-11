@@ -49,8 +49,12 @@ export function createClient() {
     {
       cookies: {
         getAll() {
-          // In Next.js 16, we use the built-in cookie management
-          return document.cookie.split("; ").map((cookie) => {
+          if (typeof document === "undefined") {
+            return [];
+          }
+          const cookieStr = document.cookie;
+          if (!cookieStr) return [];
+          return cookieStr.split("; ").map((cookie) => {
             const [name, ...valueParts] = cookie.split("=");
             return {
               name,
@@ -59,6 +63,9 @@ export function createClient() {
           });
         },
         setAll(cookiesToSet: CookieItem[]) {
+          if (typeof document === "undefined") {
+            return;
+          }
           cookiesToSet.forEach(({ name, value, options }) => {
             document.cookie = toCookieString(
               name,
