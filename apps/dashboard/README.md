@@ -6,16 +6,22 @@ Private admin dashboard for CafeToolbox. This app is where operators manage user
 
 - Presents the main dashboard landing page
 - Provides nested dashboard routes under `/dashboard`
-- Links to tools, settings, and user administration
+- Provides admin routes under `/admin` for users/tools/categories management
 - Serves as the private entry point for authenticated workflows
 
 ## Current routes
 
 - `/login`
+- `/forgot-password`
+- `/auth/callback`
+- `/auth/reset-password`
 - `/dashboard`
 - `/dashboard/tools`
 - `/dashboard/settings`
-- `/dashboard/users`
+- `/admin`
+- `/admin/users`
+- `/admin/tools`
+- `/admin/categories`
 - `/logout`
 
 The dashboard routes are intentionally nested. Public pages should not live at the top level unless they are meant to be accessible without authentication.
@@ -79,7 +85,7 @@ This app uses packages from the monorepo instead of duplicating logic:
 ## Notes
 
 - Public registration is not enabled.
-- User creation is managed through the dashboard.
+- User creation is managed through `/admin/users`.
 - If a route returns 404, confirm it is nested under `/dashboard` and not exposed at the top level.
 - If login behaves unexpectedly, check the cookie domain and the auth middleware setup.
 

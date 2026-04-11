@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@cafetoolbox/supabase/server';
 import { createAdminClient } from '@cafetoolbox/supabase';
+import { assertSuperadminUser, normalizeRole } from '../_lib/authz';
 
 interface CreateUserRequest {
   email: string;
@@ -12,7 +12,8 @@ interface CreateUserRequest {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CreateUserRequest;
-    const { email, password, display_name, role = 'user' } = body;
+    const normalizedRole = normalizeRole(body.role);
+    const { email, password, display_name } = body;
 
     // Validation
     if (!email || !password) {
@@ -29,29 +30,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check current user is superadmin
-    const supabase = await createClient();
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: 'Chưa đăng nhập' },
-        { status: 401 }
-      );
-    }
-
-    const { data: currentProfile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', currentUser.id)
-      .single();
-
-    if (currentProfile?.role !== 'superadmin') {
-      return NextResponse.json(
-        { error: 'Bạn không có quyền tạo user' },
-        { status: 403 }
-      );
-    }
+    const authResult = await assertSuperadminUser();
+    if ('error' in authResult) return authResult.error;
 
     // Use admin client to create user
     const supabaseAdmin = await createAdminClient();
@@ -74,6 +54,10 @@ export async function POST(request: Request) {
       email_confirm: true,
       user_metadata: {
         display_name: display_name || email.split('@')[0],
+        role: normalizedRole,
+      },
+      app_metadata: {
+        role: normalizedRole,
       },
     });
 
@@ -95,7 +79,7 @@ export async function POST(request: Request) {
     // Update profile with role
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
-      .update({ role })
+      .update({ role: normalizedRole })
       .eq('id', newUserData.user.id);
 
     if (updateError) {
@@ -107,7 +91,7 @@ export async function POST(request: Request) {
       user: {
         id: newUserData.user.id,
         email: newUserData.user.email,
-        role,
+        role: normalizedRole,
       },
     });
 

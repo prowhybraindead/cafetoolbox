@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { createClient } from '@cafetoolbox/supabase/client';
 
 type Profile = {
   id: string;
@@ -19,22 +18,21 @@ export default function UsersPage() {
 
   useEffect(() => {
     async function loadData() {
-      const supabase = createClient();
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-
-      if (!user) {
+      const meResponse = await fetch('/api/me', { credentials: 'include' });
+      if (meResponse.status === 401) {
         window.location.href = '/login';
         return;
       }
 
-      const { data: me } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+      if (!meResponse.ok) {
+        setError('Không thể kiểm tra quyền truy cập');
+        setLoading(false);
+        return;
+      }
 
-      if (me?.role !== 'superadmin') {
+      const meData = (await meResponse.json()) as { profile?: { role?: string | null } };
+
+      if (meData.profile?.role !== 'superadmin') {
         setIsSuperadmin(false);
         setLoading(false);
         return;
@@ -42,15 +40,16 @@ export default function UsersPage() {
 
       setIsSuperadmin(true);
 
-      const { data, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, email, display_name, role')
-        .order('created_at', { ascending: false });
+      const usersResponse = await fetch('/api/admin/users', { credentials: 'include' });
+      const usersData = (await usersResponse.json()) as {
+        error?: string;
+        profiles?: Profile[];
+      };
 
-      if (usersError) {
-        setError('Không thể tải danh sách users');
+      if (!usersResponse.ok) {
+        setError(usersData.error || 'Không thể tải danh sách users');
       } else {
-        setProfiles((data ?? []) as Profile[]);
+        setProfiles(usersData.profiles ?? []);
       }
 
       setLoading(false);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@cafetoolbox/supabase/server';
 import { createAdminClient } from '@cafetoolbox/supabase';
+import { assertSuperadminUser } from '../_lib/authz';
 
 interface DeleteUserRequest {
   userId: string;
@@ -19,16 +19,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check current user is superadmin
-    const supabase = await createClient();
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: 'Chưa đăng nhập' },
-        { status: 401 }
-      );
-    }
+    const authResult = await assertSuperadminUser();
+    if ('error' in authResult) return authResult.error;
+    const { user: currentUser } = authResult;
 
     // Prevent self-deletion
     if (userId === currentUser.id) {
@@ -38,28 +31,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const { data: currentProfile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', currentUser.id)
-      .single();
-
-    if (currentProfile?.role !== 'superadmin') {
-      return NextResponse.json(
-        { error: 'Bạn không có quyền xóa user' },
-        { status: 403 }
-      );
-    }
-
     // Use admin client to delete user
     const supabaseAdmin = await createAdminClient();
-
-    // Get user profile before deletion
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('email')
-      .eq('id', userId)
-      .single();
 
     // Delete the user (this cascades to profiles due to foreign key)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);

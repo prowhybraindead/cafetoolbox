@@ -1,5 +1,77 @@
 import Link from 'next/link';
 import { createServerClient } from '@cafetoolbox/supabase';
+import type { ReactNode, SVGProps } from 'react';
+
+function IconShell({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      {children}
+    </svg>
+  );
+}
+
+function WrenchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconShell {...props}>
+      <path d="M14.7 6.3a4.5 4.5 0 0 0-6.4 5.9l-4 4a1.5 1.5 0 0 0 2.1 2.1l4-4a4.5 4.5 0 0 0 5.9-6.4l-2.1 2.1-1.9-.6-.6-1.9Z" />
+    </IconShell>
+  );
+}
+
+function ServerIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconShell {...props}>
+      <rect x="3" y="4" width="18" height="6" rx="1.5" />
+      <rect x="3" y="14" width="18" height="6" rx="1.5" />
+      <path d="M7 7h.01" />
+      <path d="M7 17h.01" />
+    </IconShell>
+  );
+}
+
+function ZapIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconShell {...props}>
+      <path d="m13 2-9 12h6l-1 8 9-12h-6l1-8Z" />
+    </IconShell>
+  );
+}
+
+function ClockIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconShell {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </IconShell>
+  );
+}
+
+function ArrowRightIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconShell {...props}>
+      <path d="M5 12h14" />
+      <path d="m12 5 7 7-7 7" />
+    </IconShell>
+  );
+}
+
+function SettingsIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <IconShell {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.06.06a2.2 2.2 0 1 1-3.1 3.1l-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.1 1.65V21a2.2 2.2 0 1 1-4.4 0v-.1A1.8 1.8 0 0 0 7 19.25a1.8 1.8 0 0 0-1.98.36l-.06.06a2.2 2.2 0 1 1-3.1-3.1l.06-.06A1.8 1.8 0 0 0 2.28 15a1.8 1.8 0 0 0-1.65-1.1H.5a2.2 2.2 0 1 1 0-4.4h.13A1.8 1.8 0 0 0 2.28 8 1.8 1.8 0 0 0 1.92 6.02l-.06-.06a2.2 2.2 0 1 1 3.1-3.1l.06.06A1.8 1.8 0 0 0 7 2.28 1.8 1.8 0 0 0 8.1.63V.5a2.2 2.2 0 1 1 4.4 0v.13A1.8 1.8 0 0 0 13.75 2a1.8 1.8 0 0 0 1.98-.36l.06-.06a2.2 2.2 0 1 1 3.1 3.1l-.06.06A1.8 1.8 0 0 0 19.72 9c.67 0 1.22.55 1.22 1.22v.56c0 .67-.55 1.22-1.22 1.22h-.1A1.8 1.8 0 0 0 18 12.72a1.8 1.8 0 0 0 1.4 2.28Z" />
+    </IconShell>
+  );
+}
 
 export default async function DashboardPage() {
   const supabase = await createServerClient();
@@ -48,36 +120,7 @@ export default async function DashboardPage() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-cream">
-      {/* Navigation */}
-      <nav className="border-b border-borderMain bg-white">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-neon rounded-lg flex items-center justify-center">
-              <span
-                className="iconify text-charcoal"
-                data-icon="lucide:terminal"
-                data-width="20"
-              />
-            </div>
-            <span className="text-xl font-semibold tracking-tight">CafeToolbox</span>
-          </div>
-          <div className="flex items-center gap-6 text-sm">
-            <span className="text-charcoalMuted">
-              {user?.email || 'Guest'}
-            </span>
-            <Link
-              href="/logout"
-              className="text-charcoalMuted hover:text-charcoal transition-colors"
-            >
-              Đăng xuất
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-12">
+    <main className="max-w-7xl mx-auto px-6 py-12">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-charcoal mb-2">
@@ -92,11 +135,7 @@ export default async function DashboardPage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <div className="bg-white border border-borderMain rounded-xl p-6">
             <div className="flex items-center justify-between mb-3">
-              <span
-                className="iconify text-neon"
-                data-icon="lucide:wrench"
-                data-width="20"
-              />
+              <WrenchIcon className="h-5 w-5 text-neon" />
               <span className="font-mono text-xs text-neon bg-neonGhost px-2 py-0.5 rounded">
                 Tools
               </span>
@@ -107,11 +146,7 @@ export default async function DashboardPage() {
 
           <div className="bg-white border border-borderMain rounded-xl p-6">
             <div className="flex items-center justify-between mb-3">
-              <span
-                className="iconify text-neon"
-                data-icon="lucide:server"
-                data-width="20"
-              />
+              <ServerIcon className="h-5 w-5 text-neon" />
               <span className="font-mono text-xs text-neon bg-neonGhost px-2 py-0.5 rounded">
                 Services
               </span>
@@ -122,11 +157,7 @@ export default async function DashboardPage() {
 
           <div className="bg-white border border-borderMain rounded-xl p-6">
             <div className="flex items-center justify-between mb-3">
-              <span
-                className="iconify text-neon"
-                data-icon="lucide:zap"
-                data-width="20"
-              />
+              <ZapIcon className="h-5 w-5 text-neon" />
               <span className="font-mono text-xs text-neon bg-neonGhost px-2 py-0.5 rounded">
                 Status
               </span>
@@ -137,11 +168,7 @@ export default async function DashboardPage() {
 
           <div className="bg-white border border-borderMain rounded-xl p-6">
             <div className="flex items-center justify-between mb-3">
-              <span
-                className="iconify text-neon"
-                data-icon="lucide:clock"
-                data-width="20"
-              />
+              <ClockIcon className="h-5 w-5 text-neon" />
               <span className="font-mono text-xs text-neon bg-neonGhost px-2 py-0.5 rounded">
                 Uptime
               </span>
@@ -159,17 +186,9 @@ export default async function DashboardPage() {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 bg-charcoal rounded-lg flex items-center justify-center group-hover:bg-neon transition-colors">
-                <span
-                  className="iconify text-neon group-hover:text-charcoal"
-                  data-icon="lucide:wrench"
-                  data-width="24"
-                />
+                <WrenchIcon className="h-6 w-6 text-neon group-hover:text-charcoal" />
               </div>
-              <span
-                className="iconify text-charcoalMuted"
-                data-icon="lucide:arrow-right"
-                data-width="20"
-              />
+              <ArrowRightIcon className="h-5 w-5 text-charcoalMuted" />
             </div>
             <h3 className="text-lg font-semibold text-charcoal mb-2">
               Bộ công cụ
@@ -185,17 +204,9 @@ export default async function DashboardPage() {
           >
             <div className="flex items-start justify-between mb-4">
               <div className="w-12 h-12 bg-charcoal rounded-lg flex items-center justify-center group-hover:bg-neon transition-colors">
-                <span
-                  className="iconify text-neon group-hover:text-charcoal"
-                  data-icon="lucide:settings"
-                  data-width="24"
-                />
+                <SettingsIcon className="h-6 w-6 text-neon group-hover:text-charcoal" />
               </div>
-              <span
-                className="iconify text-charcoalMuted"
-                data-icon="lucide:arrow-right"
-                data-width="20"
-              />
+              <ArrowRightIcon className="h-5 w-5 text-charcoalMuted" />
             </div>
             <h3 className="text-lg font-semibold text-charcoal mb-2">
               Cài đặt
@@ -206,7 +217,6 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </main>
-    </div>
   );
 }
 

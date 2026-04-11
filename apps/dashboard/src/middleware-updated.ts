@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Middleware to protect routes and handle auth
  *
  * Routes protection:
- * - Public: /, /login, /register, /forgot-password, /auth/callback
+ * - Public: /, /login, /register, /forgot-password, /auth/callback, /auth/reset-password
  * - Protected: /dashboard, /dashboard/tools, /dashboard/users, /dashboard/settings
  * - Legacy redirects: /tools, /settings
  * - Admin only: /dashboard/users (users page)
@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes (no auth required)
-  const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/auth/callback'];
+  const publicRoutes = ['/', '/login', '/register', '/forgot-password', '/auth/callback', '/auth/reset-password'];
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route));
 
   // Skip middleware for public routes
