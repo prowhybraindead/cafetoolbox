@@ -12,6 +12,10 @@ CafeToolbox is a monorepo platform with a private admin dashboard, a public stat
   - admin user management (create, edit, role update, delete)
   - tool and category administration
   - profile management and user password change
+- Status app is operational with:
+  - live Supabase-backed service uptime and incident tracking
+  - all timestamps normalised to UTC with explicit suffix
+  - multi-timezone clock wall (Vercel EST/EDT, UTC+0, VN UTC+7) updating in real time
 - Supabase database/RLS is consolidated under unified migration `0011`.
 - Password reset flow routes now exist:
   - `/forgot-password`

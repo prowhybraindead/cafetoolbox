@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## [0.3.2-beta] - 2026-04-11
+
+- Normalised all status page timestamps to UTC with explicit `(UTC)` suffix for clarity.
+- Added live multi-timezone clock section with three real-time clocks:
+  - Vercel Server (America/New_York, EST/EDT)
+  - UTC+0
+  - Việt Nam (Asia/Ho_Chi_Minh, UTC+7)
+- Clocks update every second with hydration-safe fallback for SSR.
+- Updated footer to indicate all page times are displayed in UTC.
+
 ## [0.3.1-beta] - 2026-04-11
 
 - Fixed Vercel dashboard build typecheck failure in admin API routes.

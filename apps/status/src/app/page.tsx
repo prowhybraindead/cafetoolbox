@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle, Clock3, Github, Signal } from "lucide-react";
 import { createServerClient } from "@cafetoolbox/supabase";
 import { BrandMark } from "@cafetoolbox/ui";
+import { TimezoneClocks } from "../../components/timezone-clocks";
 
 type ServiceRow = {
   id: string;
@@ -72,7 +73,8 @@ function formatDateTime(value: string | null) {
   return new Intl.DateTimeFormat("vi-VN", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
+    timeZone: "UTC",
+  }).format(new Date(value)) + " (UTC)";
 }
 
 function pickOverallState(services: ServiceRow[], incidents: IncidentRow[]) {
@@ -388,10 +390,22 @@ export default async function StatusPage() {
           </aside>
         </section>
 
+        <section className="mt-12 rounded-3xl border border-borderMain bg-white p-8">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-xl font-semibold tracking-tight">Đồng hồ các múi giờ</h2>
+            <p className="text-sm text-charcoalMuted">
+              So sánh thời gian giữa server (Vercel), giờ chuẩn UTC và giờ Việt Nam (UTC+7). Tất cả thời gian trên trang đều hiển thị theo UTC.
+            </p>
+          </div>
+          <div className="mt-6">
+            <TimezoneClocks />
+          </div>
+        </section>
+
         <footer className="mt-12 border-t border-borderLight pt-6 text-sm text-charcoalMuted">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <p>Public status page for CafeToolbox.</p>
-            <p>Last refresh: {formatDateTime(new Date().toISOString())}</p>
+            <p>Thời gian trên trang hiển thị theo UTC · Last refresh: {formatDateTime(new Date().toISOString())}</p>
           </div>
         </footer>
       </div>
