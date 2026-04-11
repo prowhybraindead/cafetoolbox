@@ -25,6 +25,10 @@ type CookieItem = {
  */
 const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN ?? "localhost";
 
+function isSupabaseAuthCookieName(name: string) {
+  return /^sb-.*-auth-token(?:\.\d+)?$/.test(name) || /^sb-.*-auth-token-code-verifier$/.test(name);
+}
+
 function resolveCookieDomain(domain: string | undefined) {
   if (!domain) return undefined;
   if (domain === "localhost" || domain === "127.0.0.1") {
@@ -58,12 +62,43 @@ export async function updateSession(
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: CookieItem[]) {
+          const incomingCookieNames = new Set(cookiesToSet.map(({ name }) => name));
+          const existingCookieNames = request.cookies
+            .getAll()
+            .map((cookie) => cookie.name)
+            .filter(isSupabaseAuthCookieName);
+
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
           supabaseResponse = NextResponse.next({
             request,
           });
+
+          // Remove stale auth cookie chunks that are not part of the new set.
+          existingCookieNames.forEach((name) => {
+            if (incomingCookieNames.has(name)) {
+              return;
+            }
+
+            supabaseResponse.cookies.set(name, "", {
+              maxAge: 0,
+              path: "/",
+              sameSite: "lax",
+              secure: process.env.NODE_ENV === "production",
+            });
+
+            if (cookieDomain) {
+              supabaseResponse.cookies.set(name, "", {
+                maxAge: 0,
+                path: "/",
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+                domain: cookieDomain,
+              });
+            }
+          });
+
           cookiesToSet.forEach(({ name, value, options }) => {
             const cookieOptions = {
               ...options,

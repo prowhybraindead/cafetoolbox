@@ -26,6 +26,10 @@ type CookieItem = {
  */
 const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN ?? "localhost";
 
+function isSupabaseAuthCookieName(name: string) {
+  return /^sb-.*-auth-token(?:\.\d+)?$/.test(name) || /^sb-.*-auth-token-code-verifier$/.test(name);
+}
+
 function resolveCookieDomain(domain: string | undefined) {
   if (!domain) return undefined;
   if (domain === "localhost" || domain === "127.0.0.1") {
@@ -54,6 +58,35 @@ export async function createClient(options: ServerClientOptions = {}) {
         },
         setAll(cookiesToSet: CookieItem[]) {
           try {
+            const incomingCookieNames = new Set(cookiesToSet.map(({ name }) => name));
+            const existingCookieNames = cookieStore
+              .getAll()
+              .map((cookie) => cookie.name)
+              .filter(isSupabaseAuthCookieName);
+
+            existingCookieNames.forEach((name) => {
+              if (incomingCookieNames.has(name)) {
+                return;
+              }
+
+              cookieStore.set(name, "", {
+                maxAge: 0,
+                path: "/",
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+              });
+
+              if (cookieDomain) {
+                cookieStore.set(name, "", {
+                  maxAge: 0,
+                  path: "/",
+                  sameSite: "lax",
+                  secure: process.env.NODE_ENV === "production",
+                  domain: cookieDomain,
+                });
+              }
+            });
+
             cookiesToSet.forEach(({ name, value, options }) => {
               const cookieOptions = {
                 ...options,
@@ -118,6 +151,35 @@ export async function createAdminClientWithOptions(
         },
         setAll(cookiesToSet: CookieItem[]) {
           try {
+            const incomingCookieNames = new Set(cookiesToSet.map(({ name }) => name));
+            const existingCookieNames = cookieStore
+              .getAll()
+              .map((cookie) => cookie.name)
+              .filter(isSupabaseAuthCookieName);
+
+            existingCookieNames.forEach((name) => {
+              if (incomingCookieNames.has(name)) {
+                return;
+              }
+
+              cookieStore.set(name, "", {
+                maxAge: 0,
+                path: "/",
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production",
+              });
+
+              if (cookieDomain) {
+                cookieStore.set(name, "", {
+                  maxAge: 0,
+                  path: "/",
+                  sameSite: "lax",
+                  secure: process.env.NODE_ENV === "production",
+                  domain: cookieDomain,
+                });
+              }
+            });
+
             cookiesToSet.forEach(({ name, value, options }) => {
               const cookieOptions = {
                 ...options,
