@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## [0.3.1-beta] - 2026-04-11
+
+- Fixed Vercel dashboard build typecheck failure in admin API routes.
+- Standardized `assertSuperadmin()` error return shape to improve TypeScript narrowing.
+- Applied auth helper fix across admin categories, tools, and users route handlers.
+- Added Turbo build environment passthrough for:
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `AUTH_COOKIE_DOMAIN`
+- Verified `pnpm turbo run build --filter=@cafetoolbox/dashboard` succeeds after patch.
+
 ## [0.3.0-beta] - 2026-04-11
 
 - Added unified Supabase migration path centered on 0011.

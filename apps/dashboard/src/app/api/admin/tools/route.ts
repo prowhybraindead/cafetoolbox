@@ -19,7 +19,7 @@ function parseStack(value: unknown) {
 
 async function assertSuperadmin() {
   const authResult = await assertSuperadminUser();
-  if ('error' in authResult) return authResult;
+  if ('error' in authResult) return { error: authResult.error };
 
   const supabaseAdmin = await createAdminClient();
   return { supabaseAdmin };

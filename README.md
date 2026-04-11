@@ -79,10 +79,10 @@ npm run dev
 
 Useful commands:
 
-- `npm run build`
-- `npm run lint`
-- `npm run format`
-- `npm run type-check`
+- `pnpm run build`
+- `pnpm run lint`
+- `pnpm run format`
+- `pnpm run type-check`
 
 ## Dashboard Routes
 
@@ -150,6 +150,9 @@ For Vercel-like deployment:
 
 - Dashboard root directory: `apps/dashboard`
 - Status root directory: `apps/status`
+- Turbo build env passthrough in `turbo.json` must include:
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `AUTH_COOKIE_DOMAIN`
 
 Configure Supabase Auth redirect URLs to your hosted dashboard origin, not localhost, before validating forgot-password end-to-end.
 
