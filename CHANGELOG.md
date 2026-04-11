@@ -24,7 +24,7 @@ This project follows Keep a Changelog and Semantic Versioning.
   - `0012_add_heartbeat_monitoring.sql` - Schema, RLS, and helper functions
   - `0013_seed_health_check_config.sql` - Default health check configuration
 - Implemented Vercel Cron automation:
-  - `vercel.json` - Cron job schedule (every 5 minutes): `/api/crons/health-check`
+  - `vercel.json` - Cron job schedule (once per day, Hobby-compatible): `/api/crons/health-check`
   - `apps/dashboard/src/app/api/crons/health-check/route.ts` - Cron handler with parallel health checks
   - Auto-fetches health check configs from database
   - Records heartbeats to `service_heartbeats` table

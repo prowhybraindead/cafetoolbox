@@ -122,7 +122,7 @@ async function recordHeartbeat(
 
 /**
  * GET /api/crons/health-check
- * Vercel Cron job handler - runs every 5 minutes
+ * Vercel Cron job handler - runs once per day (Hobby plan compatible)
  * Checks all enabled services and records heartbeats
  */
 export async function GET(request: Request) {

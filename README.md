@@ -160,7 +160,7 @@ Add to `vercel.json`:
   "crons": [
     {
       "path": "/api/crons/health-check",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
