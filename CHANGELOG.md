@@ -27,6 +27,29 @@ See [RULES.md](RULES.md#5-versioning-rules) for complete versioning rules.
 
 ---
 
+## [0.4.12-beta] - 2026-04-12
+
+- Monitoring backend targeted patch (no logic change to existing behavior):
+  - **Heartbeat throttling**: worker now writes `worker_heartbeats` at most once per 60 s (in-memory `lastHeartbeatAt` check). Eliminates per-cycle DB write overhead when loop runs faster than 60 s.
+  - **Unified entrypoint `main.mjs`**: starts worker + watchdog concurrently via `Promise.all`; required for runtimes that support only a single `MAIN_FILE`. Standalone `worker.mjs` and `watchdog.mjs` entrypoints remain unchanged for split-process deployments.
+  - **Folder rename `monitoring/` → `monitor/`**: all module files moved to `apps/monitoring/monitor/`; all entrypoint imports updated. Pure rename — no logic change. Satisfies platform 16-character path constraint on the module folder.
+  - Added `runWatchdog` export to `monitor/watchdog.mjs` (mirrors `runMonitoringWorker` pattern) so `main.mjs` and the standalone entrypoint share the same loop implementation.
+  - Updated `ecosystem.config.cjs` with unified `cafetoolbox-monitoring` entry using `main.mjs`; split-mode entries (`cafetoolbox-worker`, `cafetoolbox-watchdog`) retained as alternatives.
+  - Added `pnpm monitoring:start` root script for unified mode.
+  - Updated `doc/MONITORING_BACKEND.md`.
+
+## [0.4.11-beta] - 2026-04-12
+
+- Implemented Phase 2 monitoring observability and system reliability layer:
+  - **Historical chart support**: Added `chart-data.mjs` utility with `getDailyUptimeHistory(db, serviceId, days)`. Reads from pre-aggregated `service_uptime_daily`; fills missing days with `uptime = null`; strict UTC; never queries raw heartbeats.
+  - **Worker self-heartbeat**: Worker upserts `worker_heartbeats` row at every cycle (fire-and-forget, never blocks loop). New migration `0016_add_worker_heartbeats.sql` adds the table with unique constraint on `worker_name`.
+  - **Watchdog detection**: New `monitoring/watchdog.mjs` module + `watchdog.mjs` entrypoint runs as a separate process. Detects stale worker heartbeats (threshold = 2× worker interval by default). Fires `worker_down` alert exactly once per outage; resets on recovery. Never crashes on DB errors.
+  - **Alerting extension**: Notifier extended with `worker_down` event type. Discord embed shows `last_seen_at` and `delay_seconds`; color-coded red.
+  - **Config additions**: `WATCHDOG_THRESHOLD_SECONDS` and `WATCHDOG_CHECK_INTERVAL_SECONDS` added to `config.mjs` with safe defaults.
+  - **PM2 ecosystem**: `cafetoolbox-watchdog` app added to `ecosystem.config.cjs`.
+  - **Root scripts**: `monitoring:watchdog` and `monitoring:watchdog:once` added to root `package.json`.
+  - Updated `doc/MONITORING_BACKEND.md` to document all new modules, commands, and DB tables.
+
 ## [0.4.10-beta] - 2026-04-12
 
 - Hardened monitoring correctness for production safety:

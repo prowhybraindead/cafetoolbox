@@ -1,13 +1,20 @@
 {
-  "name": "@cafetoolbox/monitoring",
-  "private": true,
+  "name": "monitoring-worker",
+  "version": "2.0.0",
   "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "ts-node": "^10.9.2"
+  },
   "engines": {
-    "node": ">=24"
+    "node": ">=18"
   },
   "scripts": {
-    "start": "node worker.mjs",
-    "once": "node worker.mjs --once",
-    "aggregate": "node aggregate-uptime-daily.mjs"
+    "start": "node index.js",
+    "worker": "node worker.js",
+    "worker:once": "node worker.js --once",
+    "watchdog": "node watchdog.js",
+    "watchdog:once": "node watchdog.js --once",
+    "aggregate": "node aggregate-uptime-daily.js"
   }
 }

@@ -1,4 +1,4 @@
-import { logger } from "./logger.mjs";
+import { logger } from "./logger.js";
 
 function countConsecutive(heartbeats, targetHealthy) {
   let streak = 0;
@@ -61,7 +61,6 @@ export class IncidentEngine {
 
     const serviceStatus = computeServiceStatus(latest.is_healthy, failureStreak, this.thresholds);
 
-    // Skip unnecessary writes to reduce DB load and row churn.
     if (service.status !== serviceStatus) {
       await this.db.updateService(service.id, { status: serviceStatus });
       service.status = serviceStatus;
@@ -83,7 +82,6 @@ export class IncidentEngine {
         return;
       }
 
-      // Cooldown avoids noisy reopen/resolve loops when service is flapping.
       const latestResolved = await this.db.getLatestResolvedIncidentForService(service.id);
       if (latestResolved?.resolved_at) {
         const elapsedSeconds =
@@ -98,7 +96,6 @@ export class IncidentEngine {
         }
       }
 
-      // Safe double-check to reduce cross-worker race windows before creating.
       const preExisting = await this.db.getOpenIncidentsForService(service.id);
       if (preExisting.length > 0) {
         cycleState.openIncidentByService.set(service.id, preExisting[0]);
@@ -114,7 +111,6 @@ export class IncidentEngine {
 
       const canonicalIncident = await this.ensureSingleOpenIncident(service.id);
       if (!canonicalIncident || canonicalIncident.id !== incident.id) {
-        // Another worker won the race; avoid duplicate-alert noise.
         cycleState.openIncidentByService.set(service.id, canonicalIncident || preExisting[0]);
         return;
       }
@@ -257,7 +253,6 @@ export class IncidentEngine {
         throw error;
       }
 
-      // Some deployments may still enforce older incident-status enums.
       logger.warn("major_outage incident status unavailable, using identified fallback", {
         incidentId,
       });

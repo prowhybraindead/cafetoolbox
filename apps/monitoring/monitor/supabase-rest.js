@@ -1,4 +1,4 @@
-import { logger } from "./logger.mjs";
+import { logger } from "./logger.js";
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
@@ -14,24 +14,42 @@ function buildQuery(params = {}) {
 export class SupabaseRestClient {
   constructor({ supabaseUrl, serviceRoleKey }) {
     this.baseUrl = `${supabaseUrl.replace(/\/$/, "")}/rest/v1`;
+    this.timeoutMs = Number.parseInt(process.env.SUPABASE_HTTP_TIMEOUT_MS || "15000", 10) || 15000;
     this.headers = {
       apikey: serviceRoleKey,
       Authorization: `Bearer ${serviceRoleKey}`,
       "Content-Type": "application/json",
       Prefer: "return=representation",
+      "User-Agent": "CafeToolbox-Monitoring/2.0",
     };
   }
 
   async request(path, { method = "GET", query, body, headers = {} } = {}) {
     const queryText = query ? `?${buildQuery(query)}` : "";
-    const response = await fetch(`${this.baseUrl}/${path}${queryText}`, {
-      method,
-      headers: {
-        ...this.headers,
-        ...headers,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    let response;
+
+    try {
+      response = await fetch(`${this.baseUrl}/${path}${queryText}`, {
+        method,
+        headers: {
+          ...this.headers,
+          ...headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const isAbort = error instanceof Error && error.name === "AbortError";
+      throw new Error(
+        isAbort
+          ? `Supabase request timeout (${method} ${path}) after ${this.timeoutMs}ms`
+          : `Supabase request failed (${method} ${path}): ${error?.message || error}`
+      );
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       const text = await response.text();
@@ -197,7 +215,7 @@ export class SupabaseRestClient {
       return checkedAtRows;
     }
 
-    logger.warn("checked_at column unavailable, falling back to created_at for aggregation", { serviceId });
+    logger.warn("checked_at unavailable, using created_at for aggregation", { serviceId });
 
     const createdAtRows = await this.tryGetHeartbeatsByTimestamp(
       serviceId,
@@ -237,5 +255,100 @@ export class SupabaseRestClient {
       },
       body: [payload],
     });
+  }
+
+  /**
+   * Fetch daily uptime rows for a service within a UTC date range.
+   * @param {string} serviceId - Service UUID
+   * @param {string} startDateStr - UTC date string "YYYY-MM-DD" (inclusive)
+   * @param {string} endDateStr   - UTC date string "YYYY-MM-DD" (exclusive)
+   * @returns {Promise<Array<{ date: string, uptime_percentage: number|null }>>}
+   */
+  async getDailyUptimeRows(serviceId, startDateStr, endDateStr) {
+    const rows = await this.request("service_uptime_daily", {
+      query: {
+        select: "date,uptime_percentage",
+        service_uuid: `eq.${serviceId}`,
+        and: `(date.gte.${startDateStr},date.lt.${endDateStr})`,
+        order: "date.asc",
+      },
+    });
+
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  /**
+   * Upsert a worker heartbeat row (on_conflict = worker_name).
+   * @param {string} workerName
+   * @param {string} lastSeenAt - UTC ISO string
+   */
+  async upsertWorkerHeartbeat(workerName, lastSeenAt) {
+    try {
+      await this.request("worker_heartbeats", {
+        method: "POST",
+        query: {
+          on_conflict: "worker_name",
+        },
+        headers: {
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: [
+          {
+            worker_name: workerName,
+            last_seen_at: lastSeenAt,
+            status: "healthy",
+          },
+        ],
+      });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.includes("worker_heartbeats") && msg.includes("404")) {
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch the latest heartbeat record for a named worker.
+   * @param {string} workerName
+   * @returns {Promise<{ worker_name: string, last_seen_at: string, status: string }|null>}
+   */
+  async getWorkerHeartbeat(workerName) {
+    try {
+      const rows = await this.request("worker_heartbeats", {
+        query: {
+          select: "worker_name,last_seen_at,status",
+          worker_name: `eq.${workerName}`,
+          limit: 1,
+        },
+      });
+
+      return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (!msg.includes("worker_heartbeats") || !msg.includes("404")) {
+        throw error;
+      }
+
+      // Backward-compat fallback for deployments without worker_heartbeats.
+      const rows = await this.request("service_heartbeats", {
+        query: {
+          select: "checked_at",
+          order: "checked_at.desc",
+          limit: 1,
+        },
+      });
+
+      if (!Array.isArray(rows) || rows.length === 0 || !rows[0].checked_at) {
+        return null;
+      }
+
+      return {
+        worker_name: workerName,
+        last_seen_at: rows[0].checked_at,
+        status: "healthy",
+      };
+    }
   }
 }
