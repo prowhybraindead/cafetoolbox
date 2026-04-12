@@ -4,6 +4,25 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## [0.4.6-beta] - 2026-04-12
+
+- **Created safe cleanup script for bloated raw_user_meta_data + enforced minimal metadata replacement to prevent future JWT bloat.**
+- Added `scripts/clean-bloated-auth-metadata.mjs`:
+  - Connects via SUPABASE_SERVICE_ROLE_KEY to find users with oversized metadata.
+  - Dry-run mode by default (read-only, shows current vs proposed metadata).
+  - `--force --email <email>` to clean a single user.
+  - `--force --all` to clean all bloated users.
+  - `--threshold <bytes>` to customize the detection threshold (default 1500).
+  - Replaces metadata entirely (not merge) — only keeps `display_name` and valid `avatar_url`.
+- Rewrote `auth-metadata.ts` helpers for full replacement semantics:
+  - `buildUserMetadataReplacement()`: returns only allowlisted fields (display_name, avatar_url).
+  - `buildCleanUserMetadata()`: additionally null-outs unknown keys in existing metadata so GoTrue's deep-merge effectively deletes them.
+  - Role is never stored in user_metadata — only in app_metadata.
+- Updated all metadata write paths to use `buildCleanUserMetadata()`:
+  - `/api/me` (PUT): self-profile update now strips stale keys on every save.
+  - `/api/admin/users/[userId]` (PATCH): admin update now strips stale keys.
+  - `/api/create-user` (POST): new users created with `buildUserMetadataReplacement()` (already minimal).
+
 ## [0.4.5-beta] - 2026-04-12
 
 - **Fixed JWT bloat and chunked cookie explosion by sanitizing metadata and adding stale chunk cleanup. Production login should now work without 431/494 errors.**

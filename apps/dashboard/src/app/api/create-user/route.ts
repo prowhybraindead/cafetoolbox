@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@cafetoolbox/supabase';
 import { assertSuperadminUser, normalizeRole } from '../_lib/authz';
-import { buildAppMetadataPatch, buildUserMetadataPatch } from '../_lib/auth-metadata';
+import { buildAppMetadataPatch, buildUserMetadataReplacement } from '../_lib/auth-metadata';
 
 interface CreateUserRequest {
   email: string;
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     // Create user with admin API
-    const userMetadata = buildUserMetadataPatch({
+    const userMetadata = buildUserMetadataReplacement({
       display_name: display_name || email.split('@')[0],
       avatar_url: null,
       fallbackDisplayName: email.split('@')[0] || 'User',

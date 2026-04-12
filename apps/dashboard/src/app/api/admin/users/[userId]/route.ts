@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@cafetoolbox/supabase';
 import { assertSuperadminUser, normalizeRole } from '../../../_lib/authz';
-import { buildAppMetadataPatch, buildUserMetadataPatch } from '../../../_lib/auth-metadata';
+import { buildAppMetadataPatch, buildCleanUserMetadata } from '../../../_lib/auth-metadata';
 
 async function assertSuperadmin() {
   const authResult = await assertSuperadminUser();
@@ -45,6 +45,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ userI
     return NextResponse.json({ error: 'Không có dữ liệu để cập nhật' }, { status: 400 });
   }
 
+  // Reject data URL avatars explicitly — they bloat the JWT to 17+ cookie
+  // chunks and cause 494 header-too-large errors.
+  if (typeof body.avatar_url === 'string' && body.avatar_url.trim().startsWith('data:')) {
+    return NextResponse.json({ error: 'Avatar URL không được là data URL (base64 inline)' }, { status: 400 });
+  }
+
   if (nextPassword && nextPassword.length < 6) {
     return NextResponse.json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' }, { status: 400 });
   }
@@ -70,11 +76,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ userI
 
     let userMetadata;
     try {
-      userMetadata = buildUserMetadataPatch({
-        display_name: body.display_name ?? authUser.user_metadata?.display_name,
-        avatar_url: body.avatar_url ?? authUser.user_metadata?.avatar_url,
-        fallbackDisplayName: authUser.user_metadata?.display_name ?? authUser.email?.split('@')[0] ?? 'User',
-      });
+      userMetadata = buildCleanUserMetadata(
+        authUser.user_metadata,
+        {
+          display_name: body.display_name ?? authUser.user_metadata?.display_name,
+          avatar_url: body.avatar_url ?? authUser.user_metadata?.avatar_url,
+          fallbackDisplayName: authUser.user_metadata?.display_name ?? authUser.email?.split('@')[0] ?? 'User',
+        },
+      );
     } catch (error: any) {
       return NextResponse.json({ error: error.message || 'Dữ liệu avatar không hợp lệ' }, { status: 400 });
     }

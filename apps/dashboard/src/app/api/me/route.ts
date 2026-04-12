@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@cafetoolbox/supabase/server';
 import { normalizeRole } from '../_lib/authz';
-import { buildUserMetadataPatch } from '../_lib/auth-metadata';
+import { buildCleanUserMetadata } from '../_lib/auth-metadata';
 
 export async function GET() {
   try {
@@ -52,13 +52,22 @@ export async function PUT(request: Request) {
 
     const fallbackDisplayName = user.user_metadata?.display_name ?? user.email?.split('@')[0] ?? 'User';
 
+    // Reject data URL avatars explicitly — they bloat the JWT to 17+ cookie
+    // chunks and cause 494 header-too-large errors.
+    if (typeof body.avatar_url === 'string' && body.avatar_url.trim().startsWith('data:')) {
+      return NextResponse.json({ error: 'Avatar URL không được là data URL (base64 inline)' }, { status: 400 });
+    }
+
     let userMetadata;
     try {
-      userMetadata = buildUserMetadataPatch({
-        display_name: body.display_name ?? user.user_metadata?.display_name,
-        avatar_url: body.avatar_url ?? user.user_metadata?.avatar_url,
-        fallbackDisplayName,
-      });
+      userMetadata = buildCleanUserMetadata(
+        user.user_metadata,
+        {
+          display_name: body.display_name ?? user.user_metadata?.display_name,
+          avatar_url: body.avatar_url ?? user.user_metadata?.avatar_url,
+          fallbackDisplayName,
+        },
+      );
     } catch (error: any) {
       return NextResponse.json({ error: error.message || 'Dữ liệu avatar không hợp lệ' }, { status: 400 });
     }
