@@ -58,6 +58,7 @@ export async function runMonitoringWorker({ once = false } = {}) {
     db,
     notifier,
     thresholds: {
+      incidentCooldownSeconds: config.incidentCooldownSeconds,
       incidentFailureThreshold: config.incidentFailureThreshold,
       incidentIdentifiedThreshold: config.incidentIdentifiedThreshold,
       incidentMajorThreshold: config.incidentMajorThreshold,
@@ -91,6 +92,18 @@ export async function runMonitoringWorker({ once = false } = {}) {
       const serviceConfigs = rawConfigs.map((row) => normalizeConfigRow(row, config.requestTimeoutMs));
       const services = await db.getServices();
       const serviceById = new Map(services.map((service) => [service.id, service]));
+      const openIncidents = await db.getOpenIncidents();
+      const openIncidentByService = new Map();
+
+      for (const incident of openIncidents) {
+        if (!Array.isArray(incident.services_affected)) continue;
+
+        for (const affectedServiceId of incident.services_affected) {
+          if (!openIncidentByService.has(affectedServiceId)) {
+            openIncidentByService.set(affectedServiceId, incident);
+          }
+        }
+      }
 
       const nowMs = Date.now();
       const dueChecks = serviceConfigs.filter((service) =>
@@ -138,7 +151,9 @@ export async function runMonitoringWorker({ once = false } = {}) {
             name: serviceConfig.serviceId,
           };
 
-          await incidentEngine.processHeartbeat(service, recentHeartbeats);
+          await incidentEngine.processHeartbeat(service, recentHeartbeats, {
+            openIncidentByService,
+          });
 
           if (health.isHealthy) {
             okCount += 1;

@@ -32,17 +32,15 @@ function computeServiceStatus(isHealthy, failureStreak, thresholds) {
 }
 
 function computeIncidentStatus(failureStreak, thresholds) {
+  if (failureStreak >= thresholds.incidentMajorThreshold) {
+    return "major_outage";
+  }
+
   if (failureStreak >= thresholds.incidentIdentifiedThreshold) {
     return "identified";
   }
 
   return "investigating";
-}
-
-function findIncidentForService(openIncidents, serviceId) {
-  return openIncidents.find((incident) =>
-    Array.isArray(incident.services_affected) && incident.services_affected.includes(serviceId)
-  );
 }
 
 export class IncidentEngine {
@@ -52,7 +50,7 @@ export class IncidentEngine {
     this.thresholds = thresholds;
   }
 
-  async processHeartbeat(service, recentHeartbeats) {
+  async processHeartbeat(service, recentHeartbeats, cycleState) {
     if (!recentHeartbeats.length) {
       return;
     }
@@ -62,22 +60,48 @@ export class IncidentEngine {
     const successStreak = countConsecutive(recentHeartbeats, true);
 
     const serviceStatus = computeServiceStatus(latest.is_healthy, failureStreak, this.thresholds);
-    await this.db.updateService(service.id, { status: serviceStatus });
 
-    const openIncidents = await this.db.getOpenIncidents();
-    const currentIncident = findIncidentForService(openIncidents, service.id);
+    // Skip unnecessary writes to reduce DB load and row churn.
+    if (service.status !== serviceStatus) {
+      await this.db.updateService(service.id, { status: serviceStatus });
+      service.status = serviceStatus;
+    }
+
+    const currentIncident = cycleState.openIncidentByService.get(service.id) || null;
 
     if (!latest.is_healthy) {
-      await this.handleFailure(service, currentIncident, failureStreak, latest);
+      await this.handleFailure(service, currentIncident, failureStreak, latest, cycleState);
       return;
     }
 
-    await this.handleRecovery(service, currentIncident, successStreak, latest);
+    await this.handleRecovery(service, currentIncident, successStreak, cycleState);
   }
 
-  async handleFailure(service, currentIncident, failureStreak, latest) {
+  async handleFailure(service, currentIncident, failureStreak, latest, cycleState) {
     if (!currentIncident) {
       if (failureStreak < this.thresholds.incidentFailureThreshold) {
+        return;
+      }
+
+      // Cooldown avoids noisy reopen/resolve loops when service is flapping.
+      const latestResolved = await this.db.getLatestResolvedIncidentForService(service.id);
+      if (latestResolved?.resolved_at) {
+        const elapsedSeconds =
+          (Date.now() - new Date(latestResolved.resolved_at).getTime()) / 1000;
+        if (elapsedSeconds < this.thresholds.incidentCooldownSeconds) {
+          logger.warn("Incident creation skipped due to cooldown", {
+            serviceId: service.id,
+            cooldownSeconds: this.thresholds.incidentCooldownSeconds,
+            elapsedSeconds: Number(elapsedSeconds.toFixed(2)),
+          });
+          return;
+        }
+      }
+
+      // Safe double-check to reduce cross-worker race windows before creating.
+      const preExisting = await this.db.getOpenIncidentsForService(service.id);
+      if (preExisting.length > 0) {
+        cycleState.openIncidentByService.set(service.id, preExisting[0]);
         return;
       }
 
@@ -87,6 +111,15 @@ export class IncidentEngine {
         started_at: new Date().toISOString(),
         services_affected: [service.id],
       });
+
+      const canonicalIncident = await this.ensureSingleOpenIncident(service.id);
+      if (!canonicalIncident || canonicalIncident.id !== incident.id) {
+        // Another worker won the race; avoid duplicate-alert noise.
+        cycleState.openIncidentByService.set(service.id, canonicalIncident || preExisting[0]);
+        return;
+      }
+
+      cycleState.openIncidentByService.set(service.id, incident);
 
       await this.db.addIncidentUpdate({
         incident_id: incident.id,
@@ -110,32 +143,37 @@ export class IncidentEngine {
       return;
     }
 
-    const updated = await this.db.updateIncident(currentIncident.id, {
-      status: nextStatus,
-    });
+    const updateResult = await this.applyIncidentStatus(currentIncident.id, nextStatus);
+    const appliedStatus = updateResult.status;
+    const updated = updateResult.incident;
 
     await this.db.addIncidentUpdate({
       incident_id: currentIncident.id,
-      status: nextStatus,
-      body: `Automatic escalation after ${failureStreak} consecutive failed checks. Current state: ${nextStatus}.`,
+      status: appliedStatus,
+      body: `Automatic escalation after ${failureStreak} consecutive failed checks. Current state: ${appliedStatus}.`,
     });
 
     logger.warn("Incident auto-escalated", {
       serviceId: service.id,
       incidentId: currentIncident.id,
       failureStreak,
-      nextStatus,
+      nextStatus: appliedStatus,
+    });
+
+    cycleState.openIncidentByService.set(service.id, {
+      ...(updated || currentIncident),
+      status: appliedStatus,
     });
 
     void this.notifier.notify("incident_updated", {
-      message: `Incident for ${service.name} escalated to ${nextStatus}.`,
+      message: `Incident for ${service.name} escalated to ${appliedStatus}.`,
       service,
       incident: updated || currentIncident,
       failureStreak,
     });
   }
 
-  async handleRecovery(service, currentIncident, successStreak) {
+  async handleRecovery(service, currentIncident, successStreak, cycleState) {
     if (!currentIncident) {
       return;
     }
@@ -156,6 +194,8 @@ export class IncidentEngine {
       body: `Automatic recovery after ${successStreak} consecutive healthy checks.`,
     });
 
+    cycleState.openIncidentByService.delete(service.id);
+
     logger.info("Incident auto-resolved", {
       serviceId: service.id,
       incidentId: currentIncident.id,
@@ -168,5 +208,68 @@ export class IncidentEngine {
       incident: resolved || currentIncident,
       failureStreak: 0,
     });
+  }
+
+  async ensureSingleOpenIncident(serviceId) {
+    const openIncidents = await this.db.getOpenIncidentsForService(serviceId);
+    if (openIncidents.length <= 1) {
+      return openIncidents[0] || null;
+    }
+
+    const [canonical, ...duplicates] = openIncidents;
+    const resolvedAt = new Date().toISOString();
+
+    // Resolve extra open incidents immediately to keep one-open-incident invariant.
+    for (const duplicate of duplicates) {
+      await this.db.updateIncident(duplicate.id, {
+        status: "resolved",
+        resolved_at: resolvedAt,
+      });
+
+      await this.db.addIncidentUpdate({
+        incident_id: duplicate.id,
+        status: "resolved",
+        body: "Auto-resolved duplicate open incident created during race-condition guard.",
+      });
+    }
+
+    logger.warn("Duplicate open incidents were reconciled", {
+      serviceId,
+      canonicalIncidentId: canonical.id,
+      duplicatesResolved: duplicates.map((item) => item.id),
+    });
+
+    return canonical;
+  }
+
+  async applyIncidentStatus(incidentId, requestedStatus) {
+    try {
+      const incident = await this.db.updateIncident(incidentId, {
+        status: requestedStatus,
+      });
+
+      return {
+        status: requestedStatus,
+        incident,
+      };
+    } catch (error) {
+      if (requestedStatus !== "major_outage") {
+        throw error;
+      }
+
+      // Some deployments may still enforce older incident-status enums.
+      logger.warn("major_outage incident status unavailable, using identified fallback", {
+        incidentId,
+      });
+
+      const incident = await this.db.updateIncident(incidentId, {
+        status: "identified",
+      });
+
+      return {
+        status: "identified",
+        incident,
+      };
+    }
   }
 }

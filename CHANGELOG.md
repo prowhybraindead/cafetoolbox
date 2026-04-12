@@ -27,6 +27,25 @@ See [RULES.md](RULES.md#5-versioning-rules) for complete versioning rules.
 
 ---
 
+## [0.4.10-beta] - 2026-04-12
+
+- Hardened monitoring correctness for production safety:
+  - Incident escalation now supports high severity (`major_outage`) with compatibility fallback when legacy enum constraints exist.
+  - Added anti-flapping cooldown (`INCIDENT_COOLDOWN_SECONDS`) after incident resolution.
+  - Added race-safe duplicate incident prevention with post-create reconciliation to keep one canonical open incident per service.
+  - Reduced incident lookup load by caching open incidents once per worker cycle.
+  - Service status writes are skipped when computed status has not changed.
+- Hardened daily aggregation semantics:
+  - When a day has no heartbeats, aggregation now writes `uptime_percentage = null` and `avg_response_time = null` (unknown/no-data) instead of `0%`.
+  - Upsert remains deterministic and idempotent for repeated runs on the same UTC window.
+- Added migration `packages/supabase/migrations/0015_monitoring_correctness_hardening.sql`:
+  - Makes `service_uptime_daily.uptime_percentage` nullable.
+  - Adds `major_outage` incident status value for enum-backed deployments.
+- Updated compatibility surfaces:
+  - `packages/shared/src/types.ts`
+  - `apps/status/src/app/page.tsx`
+  - `doc/MONITORING_BACKEND.md`
+
 ## [0.4.9-beta] - 2026-04-12
 
 - Relocated monitoring backend from `apps/status/monitoringserver` to dedicated backend app path `apps/monitoring`.

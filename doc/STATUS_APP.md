@@ -389,6 +389,7 @@ interface ServiceHealthRow {
 |---|---|---|---|
 | `investigating` | Investigating | Orange | We're currently investigating this issue |
 | `identified` | Identified | Yellow | The root cause has been identified |
+| `major_outage` | Major Outage | Red | Critical outage is in progress |
 | `monitoring` | Monitoring | Blue | We're monitoring for continued stability |
 | `resolved` | Resolved | Green | The incident has been resolved |
 

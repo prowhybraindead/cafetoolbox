@@ -13,6 +13,8 @@ This folder contains the standalone monitoring backend runtime for VPS deploymen
 2. Fill in required values:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
+   - Optional hardening knobs:
+     - `INCIDENT_COOLDOWN_SECONDS` (default 180)
 3. Start worker:
 
 ```bash

@@ -10,9 +10,20 @@ function startOfUtcDay(date) {
 
 function computeDailyMetrics(heartbeats) {
   const totalChecks = heartbeats.length;
+
+  // No heartbeat data means unknown availability, not 0% uptime.
+  if (totalChecks === 0) {
+    return {
+      uptimePercentage: null,
+      avgResponseTime: null,
+      totalChecks: 0,
+      failedChecks: 0,
+    };
+  }
+
   const failedChecks = heartbeats.filter((row) => !row.is_healthy).length;
   const healthyChecks = totalChecks - failedChecks;
-  const uptimePercentage = totalChecks > 0 ? Number(((healthyChecks / totalChecks) * 100).toFixed(4)) : 0;
+  const uptimePercentage = Number(((healthyChecks / totalChecks) * 100).toFixed(4));
 
   const responseTimes = heartbeats
     .map((row) => row.response_time_ms)
@@ -49,6 +60,7 @@ export async function runDailyAggregation({ db, runDate }) {
       const heartbeats = await db.getHeartbeatsForWindow(service.id, start.toISOString(), end.toISOString());
       const metrics = computeDailyMetrics(heartbeats);
 
+      // Upsert on (service_uuid, date) keeps reruns deterministic and idempotent.
       await db.upsertDailyAggregate({
         service_uuid: service.id,
         date: reportDate,

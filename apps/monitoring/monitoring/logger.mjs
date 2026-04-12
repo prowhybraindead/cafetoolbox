@@ -29,4 +29,13 @@ export const logger = {
 
     console.error(`[monitoring] ${stamp()} ERROR ${message}`);
   },
+
+  critical(message, meta) {
+    if (meta) {
+      console.error(`[monitoring] ${stamp()} CRITICAL ${message}`, meta);
+      return;
+    }
+
+    console.error(`[monitoring] ${stamp()} CRITICAL ${message}`);
+  },
 };

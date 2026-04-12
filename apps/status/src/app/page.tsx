@@ -22,7 +22,7 @@ type ServiceHealthRow = {
 type IncidentRow = {
   id: string;
   title: string;
-  status: "investigating" | "identified" | "monitoring" | "resolved";
+  status: "investigating" | "identified" | "major_outage" | "monitoring" | "resolved";
   started_at: string;
   resolved_at: string | null;
   services_affected: string[] | null;
@@ -33,7 +33,7 @@ type IncidentUpdateRow = {
   id: string;
   incident_id: string;
   body: string;
-  status: "investigating" | "identified" | "monitoring" | "resolved";
+  status: "investigating" | "identified" | "major_outage" | "monitoring" | "resolved";
   created_at: string;
 };
 
@@ -67,9 +67,14 @@ const serviceStatusCopy = {
 const incidentStatusCopy = {
   investigating: { label: "Đang điều tra", tone: "text-orange-600" },
   identified: { label: "Đã xác định", tone: "text-yellow-700" },
+  major_outage: { label: "Sự cố lớn", tone: "text-red-600" },
   monitoring: { label: "Đang theo dõi", tone: "text-blue-600" },
   resolved: { label: "Đã khắc phục", tone: "text-green-600" },
 } as const;
+
+function getIncidentStatusDisplay(status: IncidentRow["status"]) {
+  return incidentStatusCopy[status] || incidentStatusCopy.investigating;
+}
 
 function formatPercent(value: number) {
   return `${value.toFixed(2)}%`;
@@ -371,7 +376,7 @@ export default async function StatusPage() {
             <div className="mt-6 space-y-4">
               {incidents.length > 0 ? (
                 incidents.map((incident) => {
-                  const incidentStatus = incidentStatusCopy[incident.status];
+                  const incidentStatus = getIncidentStatusDisplay(incident.status);
                   const incidentUpdates = updatesByIncident[incident.id] ?? [];
 
                   return (

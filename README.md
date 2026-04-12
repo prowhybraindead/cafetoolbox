@@ -200,6 +200,7 @@ INCIDENT_FAILURE_THRESHOLD=3
 INCIDENT_IDENTIFIED_THRESHOLD=5
 INCIDENT_MAJOR_THRESHOLD=8
 INCIDENT_RECOVERY_THRESHOLD=2
+INCIDENT_COOLDOWN_SECONDS=180
 
 # Optional alert integrations
 DISCORD_WEBHOOK_URL=<discord-webhook-url>
@@ -222,7 +223,7 @@ Admin users can configure health check endpoints in the database:
 
 ### Daily Aggregation Table
 
-For historical charts, worker aggregation writes to `service_uptime_daily` (migration: `packages/supabase/migrations/0014_add_service_uptime_daily.sql`):
+For historical charts, worker aggregation writes to `service_uptime_daily` (migrations: `packages/supabase/migrations/0014_add_service_uptime_daily.sql`, `packages/supabase/migrations/0015_monitoring_correctness_hardening.sql`):
 
 - `service_uuid`
 - `date` (UTC)

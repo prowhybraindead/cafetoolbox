@@ -37,9 +37,14 @@ This backend is worker-based (not a REST API server).
 ### Incident engine
 
 - Trigger when consecutive failures reach threshold (`INCIDENT_FAILURE_THRESHOLD`, default 3)
-- Escalate incident status to `identified` on deeper failure streak
+- Escalate incident status based on failure streak:
+  - `investigating`
+  - `identified`
+  - `major_outage` (with compatibility fallback to `identified` if DB enum is not upgraded yet)
 - Resolve automatically after consecutive healthy checks (`INCIDENT_RECOVERY_THRESHOLD`, default 2)
-- Prevent duplicate open incidents by service association
+- Cooldown after resolve (`INCIDENT_COOLDOWN_SECONDS`, default 180) to reduce flapping noise
+- Prevent duplicate open incidents by race-safe double-check and duplicate reconciliation
+- Fetch open incidents once per worker cycle and reuse in-memory cache for lower DB load
 
 ### Alerts
 
@@ -56,6 +61,8 @@ This backend is worker-based (not a REST API server).
 - Daily UTC window aggregation from `service_heartbeats`
 - Upsert into `service_uptime_daily`
 - Supports future chart windows without querying raw heartbeat logs
+- `total_checks = 0` now writes `uptime_percentage = null` and `avg_response_time = null`
+  to represent unknown/no-data instead of false 0% uptime
 
 ## Commands
 
@@ -68,6 +75,7 @@ This backend is worker-based (not a REST API server).
 Migration required:
 
 - `packages/supabase/migrations/0014_add_service_uptime_daily.sql`
+- `packages/supabase/migrations/0015_monitoring_correctness_hardening.sql`
 
 Table added:
 

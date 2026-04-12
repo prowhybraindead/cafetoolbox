@@ -37,7 +37,7 @@ export interface Tool {
 
 // --- Status Page Types ---
 
-export type IncidentStatus = "investigating" | "identified" | "monitoring" | "resolved";
+export type IncidentStatus = "investigating" | "identified" | "major_outage" | "monitoring" | "resolved";
 export type ServiceStatus = "operational" | "degraded" | "partial_outage" | "major_outage";
 
 export interface Service {

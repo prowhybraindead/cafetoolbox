@@ -109,6 +109,33 @@ export class SupabaseRestClient {
     return Array.isArray(rows) ? rows : [];
   }
 
+  async getOpenIncidentsForService(serviceId) {
+    const rows = await this.request("incidents", {
+      query: {
+        select: "id,title,status,started_at,resolved_at,services_affected,updated_at",
+        status: "not.eq.resolved",
+        services_affected: `cs.{${serviceId}}`,
+        order: "started_at.asc",
+      },
+    });
+
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  async getLatestResolvedIncidentForService(serviceId) {
+    const rows = await this.request("incidents", {
+      query: {
+        select: "id,resolved_at,started_at",
+        status: "eq.resolved",
+        services_affected: `cs.{${serviceId}}`,
+        order: "resolved_at.desc",
+        limit: 1,
+      },
+    });
+
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  }
+
   async createIncident(payload) {
     const rows = await this.request("incidents", {
       method: "POST",
