@@ -27,6 +27,18 @@ See [RULES.md](RULES.md#5-versioning-rules) for complete versioning rules.
 
 ---
 
+## [0.4.9-beta] - 2026-04-12
+
+- Relocated monitoring backend from `apps/status/monitoringserver` to dedicated backend app path `apps/monitoring`.
+- Removed ignore rule for monitoring backend so it is fully version-controlled as a core system component.
+- Updated root monitoring scripts to execute from `apps/monitoring`.
+- Added/updated VPS runtime artifacts under `apps/monitoring`:
+  - `package.json`
+  - `.env.example`
+  - `README.md`
+  - `ecosystem.config.cjs`
+- Updated documentation references to reflect the new monitoring backend location.
+
 ## [0.4.8-beta] - 2026-04-12
 
 - Built production-focused monitoring backend worker system (non-API architecture):

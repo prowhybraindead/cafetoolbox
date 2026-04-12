@@ -1,0 +1,13 @@
+{
+  "name": "@cafetoolbox/monitoring",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node worker.mjs",
+    "once": "node worker.mjs --once",
+    "aggregate": "node aggregate-uptime-daily.mjs"
+  }
+}

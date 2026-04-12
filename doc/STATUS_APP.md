@@ -43,10 +43,10 @@ This system follows the **CafeToolbox dual-layer versioning system**:
   - Incremented when this specific app changes
   - May be lower than the platform root version (normal for newer apps)
 
-- **Platform Root Version**: `0.4.7-beta` (as of this release)
+- **Platform Root Version**: `0.4.9-beta` (as of this release)
   - Tracked in `CHANGELOG.md` and `AI.md`
   - Increments for ALL changes across the entire platform
-  - App releases are logged with scoped format: `[0.4.7-beta] - (status 0.1.0)`
+  - App releases are logged with scoped format: `[0.4.9-beta] - (status 0.1.0)`
 
 ### Why App Version May Be Lower
 
@@ -640,7 +640,7 @@ Even the status page should be monitored:
 
 - [Dashboard Architecture](~/doc/DASHBOARD_ARCHITECTURE.md) - Core platform documentation
 - [Supabase Integration](~/packages/supabase/README.md) - Database client usage
-- [Health Check Workers](~/scripts/health-check-worker.mjs) - Background monitoring logic
+- [Health Check Workers](~/apps/monitoring/worker.mjs) - Background monitoring logic
 
 ### Support & Troubleshooting
 

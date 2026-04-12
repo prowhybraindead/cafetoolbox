@@ -14,15 +14,15 @@ This backend is worker-based (not a REST API server).
 
 ## Runtime Layout
 
-- `scripts/health-check-worker.mjs`: worker entrypoint
-- `scripts/aggregate-uptime-daily.mjs`: daily rollup entrypoint
-- `scripts/monitoring/config.mjs`: environment + runtime configuration
-- `scripts/monitoring/health-checker.mjs`: timeout + retry HTTP probes
-- `scripts/monitoring/supabase-rest.mjs`: minimal Supabase REST gateway
-- `scripts/monitoring/incident-engine.mjs`: incident trigger/escalation/recovery logic
-- `scripts/monitoring/notifier.mjs`: Discord + generic webhook delivery
-- `scripts/monitoring/aggregation-job.mjs`: per-day uptime aggregate writer
-- `scripts/monitoring/logger.mjs`: structured logs
+- `apps/monitoring/worker.mjs`: worker entrypoint
+- `apps/monitoring/aggregate-uptime-daily.mjs`: daily rollup entrypoint
+- `apps/monitoring/monitoring/config.mjs`: environment + runtime configuration
+- `apps/monitoring/monitoring/health-checker.mjs`: timeout + retry HTTP probes
+- `apps/monitoring/monitoring/supabase-rest.mjs`: minimal Supabase REST gateway
+- `apps/monitoring/monitoring/incident-engine.mjs`: incident trigger/escalation/recovery logic
+- `apps/monitoring/monitoring/notifier.mjs`: Discord + generic webhook delivery
+- `apps/monitoring/monitoring/aggregation-job.mjs`: per-day uptime aggregate writer
+- `apps/monitoring/monitoring/logger.mjs`: structured logs
 
 ## Core Behavior
 

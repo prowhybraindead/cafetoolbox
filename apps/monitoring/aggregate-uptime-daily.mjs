@@ -4,8 +4,8 @@
  * Daily uptime aggregation entrypoint.
  *
  * Usage:
- *   node scripts/aggregate-uptime-daily.mjs
- *   node scripts/aggregate-uptime-daily.mjs --date=2026-04-11
+ *   node aggregate-uptime-daily.mjs
+ *   node aggregate-uptime-daily.mjs --date=2026-04-11
  */
 
 import { loadMonitoringConfig } from "./monitoring/config.mjs";

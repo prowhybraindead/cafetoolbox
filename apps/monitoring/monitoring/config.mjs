@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 const DEFAULTS = {
   workerIntervalSeconds: 30,
   maxConcurrency: 6,
@@ -11,6 +15,43 @@ const DEFAULTS = {
   heartbeatLookback: 20,
   aggregationBatchSize: 25,
 };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+let envLoaded = false;
+
+function loadDotEnvOnce() {
+  if (envLoaded) return;
+
+  const candidates = [
+    resolve(process.cwd(), ".env"),
+    resolve(__dirname, "..", ".env"),
+  ];
+
+  for (const envPath of candidates) {
+    try {
+      const content = readFileSync(envPath, "utf8");
+      for (const rawLine of content.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) continue;
+
+        const separator = line.indexOf("=");
+        if (separator <= 0) continue;
+
+        const key = line.slice(0, separator).trim();
+        const value = line.slice(separator + 1).trim();
+
+        if (!process.env[key]) {
+          process.env[key] = value;
+        }
+      }
+    } catch {
+      // No .env in this location; continue to next candidate.
+    }
+  }
+
+  envLoaded = true;
+}
 
 function getInt(name, fallback) {
   const raw = process.env[name];
@@ -29,6 +70,8 @@ function getRequired(name) {
 }
 
 export function loadMonitoringConfig() {
+  loadDotEnvOnce();
+
   return {
     supabaseUrl: getRequired("NEXT_PUBLIC_SUPABASE_URL"),
     serviceRoleKey: getRequired("SUPABASE_SERVICE_ROLE_KEY"),

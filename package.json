@@ -9,9 +9,9 @@
     "format": "turbo format",
     "clean": "turbo clean",
     "type-check": "turbo type-check",
-    "monitoring:worker": "node scripts/health-check-worker.mjs",
-    "monitoring:once": "node scripts/health-check-worker.mjs --once",
-    "monitoring:aggregate-daily": "node scripts/aggregate-uptime-daily.mjs"
+    "monitoring:worker": "node apps/monitoring/worker.mjs",
+    "monitoring:once": "node apps/monitoring/worker.mjs --once",
+    "monitoring:aggregate-daily": "node apps/monitoring/aggregate-uptime-daily.mjs"
   },
   "devDependencies": {
     "dotenv": "^17.4.1",

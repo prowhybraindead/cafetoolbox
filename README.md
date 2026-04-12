@@ -172,7 +172,7 @@ pnpm monitoring:aggregate-daily
 Optional explicit date (UTC day boundary):
 
 ```bash
-node scripts/aggregate-uptime-daily.mjs --date=2026-04-11
+node apps/monitoring/aggregate-uptime-daily.mjs --date=2026-04-11
 ```
 
 #### Scheduling recommendations
