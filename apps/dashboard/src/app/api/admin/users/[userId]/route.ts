@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@cafetoolbox/supabase';
 import { assertSuperadminUser, normalizeRole } from '../../../_lib/authz';
+import { buildAppMetadataPatch, buildUserMetadataPatch } from '../../../_lib/auth-metadata';
 
 async function assertSuperadmin() {
   const authResult = await assertSuperadminUser();
@@ -67,18 +68,21 @@ export async function PATCH(request: Request, context: { params: Promise<{ userI
       ? normalizeRole(body.role)
       : normalizeRole(authUser.app_metadata?.role ?? authUser.user_metadata?.role ?? null);
 
+    let userMetadata;
+    try {
+      userMetadata = buildUserMetadataPatch({
+        display_name: body.display_name ?? authUser.user_metadata?.display_name,
+        avatar_url: body.avatar_url ?? authUser.user_metadata?.avatar_url,
+        fallbackDisplayName: authUser.user_metadata?.display_name ?? authUser.email?.split('@')[0] ?? 'User',
+      });
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message || 'Dữ liệu avatar không hợp lệ' }, { status: 400 });
+    }
+
     const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
       ...(nextPassword ? { password: nextPassword } : {}),
-      user_metadata: {
-        ...(authUser.user_metadata ?? {}),
-        ...(typeof body.display_name === 'string' ? { display_name: body.display_name } : {}),
-        ...(typeof body.avatar_url === 'string' ? { avatar_url: body.avatar_url } : {}),
-        role: nextRole,
-      },
-      app_metadata: {
-        ...(authUser.app_metadata ?? {}),
-        role: nextRole,
-      },
+      user_metadata: userMetadata,
+      app_metadata: buildAppMetadataPatch(nextRole),
     });
 
     if (authUpdateError) {

@@ -102,14 +102,21 @@ function normalizeRole(role: string | null | undefined) {
   return 'user';
 }
 
-export function DashboardNav() {
-  const [info, setInfo] = useState<UserInfo | null>(null);
-  const [initials, setInitials] = useState('U');
+export function DashboardNav({ initialUser }: { initialUser?: UserInfo | null }) {
+  const [info, setInfo] = useState<UserInfo | null>(initialUser ?? null);
+  const [initials, setInitials] = useState(
+    (initialUser?.display_name || initialUser?.email?.split('@')[0] || 'User').charAt(0).toUpperCase()
+  );
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (initialUser) {
+      setLoading(false);
+      return;
+    }
+
     let active = true;
 
     async function loadUserInfo() {
@@ -155,7 +162,7 @@ export function DashboardNav() {
       active = false;
       document.removeEventListener('mousedown', handleClick);
     };
-  }, []);
+  }, [initialUser]);
 
   const displayName = info?.display_name || info?.email?.split('@')[0] || 'User';
   const isSuperAdmin = normalizeRole(info?.role) === 'superadmin';

@@ -70,14 +70,49 @@ function makeCookieHandlers(
     },
     setAll(cookiesToSet: CookieItem[]) {
       try {
+        const incomingNames = new Set(cookiesToSet.map((cookie) => cookie.name));
+        const existingNames = cookieStore
+          .getAll()
+          .map((cookie) => cookie.name)
+          .filter((name) => SB_AUTH_COOKIE_RE.test(name));
+
+        if (isProd) {
+          for (const name of existingNames) {
+            if (incomingNames.has(name)) continue;
+
+            cookieStore.set(name, "", {
+              maxAge: 0,
+              path: "/",
+              sameSite: "lax",
+              secure: true,
+            });
+
+            if (cookieDomain) {
+              cookieStore.set(name, "", {
+                maxAge: 0,
+                path: "/",
+                sameSite: "lax",
+                secure: true,
+                domain: cookieDomain,
+              });
+            }
+          }
+        }
+
         for (const { name, value, options } of cookiesToSet) {
           const isAuthCookie = SB_AUTH_COOKIE_RE.test(name);
+
+          const maxAge =
+            isAuthCookie && typeof options?.maxAge !== 'number'
+              ? 60 * 60 * 24 * 7
+              : options?.maxAge;
 
           cookieStore.set(name, value, {
             ...options,
             sameSite: "lax" as const,
             secure: isProd,
             path: "/",
+            ...(typeof maxAge === 'number' ? { maxAge } : {}),
             ...(cookieDomain && isAuthCookie ? { domain: cookieDomain } : {}),
           });
         }

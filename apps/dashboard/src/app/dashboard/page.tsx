@@ -75,7 +75,6 @@ function SettingsIcon(props: SVGProps<SVGSVGElement>) {
 
 export default async function DashboardPage() {
   const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
   // Fetch tools count
   const { count: toolsCount } = await supabase

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@cafetoolbox/supabase/server';
 import { normalizeRole } from '../_lib/authz';
+import { buildUserMetadataPatch } from '../_lib/auth-metadata';
 
 export async function GET() {
   try {
@@ -49,14 +50,21 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Chưa đăng nhập' }, { status: 401 });
     }
 
-    const nextDisplayName = body.display_name ?? null;
-    const nextAvatarUrl = body.avatar_url ?? null;
+    const fallbackDisplayName = user.user_metadata?.display_name ?? user.email?.split('@')[0] ?? 'User';
+
+    let userMetadata;
+    try {
+      userMetadata = buildUserMetadataPatch({
+        display_name: body.display_name ?? user.user_metadata?.display_name,
+        avatar_url: body.avatar_url ?? user.user_metadata?.avatar_url,
+        fallbackDisplayName,
+      });
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message || 'Dữ liệu avatar không hợp lệ' }, { status: 400 });
+    }
 
     const { error: updateError } = await supabase.auth.updateUser({
-      data: {
-        display_name: nextDisplayName,
-        avatar_url: nextAvatarUrl,
-      },
+      data: userMetadata,
     });
 
     if (updateError) {

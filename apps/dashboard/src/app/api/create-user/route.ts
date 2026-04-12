@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@cafetoolbox/supabase';
 import { assertSuperadminUser, normalizeRole } from '../_lib/authz';
+import { buildAppMetadataPatch, buildUserMetadataPatch } from '../_lib/auth-metadata';
 
 interface CreateUserRequest {
   email: string;
@@ -48,17 +49,18 @@ export async function POST(request: Request) {
     }
 
     // Create user with admin API
+    const userMetadata = buildUserMetadataPatch({
+      display_name: display_name || email.split('@')[0],
+      avatar_url: null,
+      fallbackDisplayName: email.split('@')[0] || 'User',
+    });
+
     const { data: newUserData, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: {
-        display_name: display_name || email.split('@')[0],
-        role: normalizedRole,
-      },
-      app_metadata: {
-        role: normalizedRole,
-      },
+      user_metadata: userMetadata,
+      app_metadata: buildAppMetadataPatch(normalizedRole),
     });
 
     if (createError) {

@@ -78,6 +78,16 @@ function toCookieString(
   return parts.join("; ");
 }
 
+function clearCookieVariant(name: string, domain: string | undefined, secure: boolean) {
+  document.cookie = toCookieString(name, "", {
+    path: "/",
+    sameSite: "lax",
+    secure,
+    maxAge: 0,
+    ...(domain ? { domain } : {}),
+  });
+}
+
 /**
  * Regex to detect Supabase auth cookie names.
  * Matches: sb-<ref>-auth-token, sb-<ref>-auth-token.0..n, sb-<ref>-auth-token-code-verifier
@@ -117,8 +127,10 @@ export function createClient() {
         setAll(cookiesToSet: CookieItem[]) {
           if (typeof document === "undefined") return;
 
+          const isProd = typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1";
           for (const { name, value, options } of cookiesToSet) {
             const isAuthCookie = SB_AUTH_COOKIE_RE.test(name);
+            const maxAge = isAuthCookie && typeof options?.maxAge !== 'number' ? 60 * 60 * 24 * 7 : options?.maxAge;
 
             // Build cookie options — single authoritative domain variant per cookie
             const cookieOpts: Record<string, unknown> = {
@@ -126,6 +138,7 @@ export function createClient() {
               sameSite: "lax",
               secure,
               ...(options ?? {}),
+              ...(typeof maxAge === 'number' ? { maxAge } : {}),
             };
 
             // Only set domain on auth cookies when we have one
@@ -134,6 +147,21 @@ export function createClient() {
             }
 
             document.cookie = toCookieString(name, value, cookieOpts);
+          }
+
+          if (!isProd) return;
+
+          const incomingNames = new Set(cookiesToSet.map((cookie) => cookie.name));
+          const currentNames = document.cookie
+            ? document.cookie.split("; ").map((cookie) => cookie.split("=")[0]).filter((name): name is string => Boolean(name))
+            : [];
+
+          for (const name of currentNames) {
+            if (!SB_AUTH_COOKIE_RE.test(name)) continue;
+            if (incomingNames.has(name)) continue;
+
+            clearCookieVariant(name, undefined, secure);
+            clearCookieVariant(name, cookieDomain, secure);
           }
         },
       },

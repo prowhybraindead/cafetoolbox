@@ -1,13 +1,26 @@
+import { createServerClient } from '@cafetoolbox/supabase';
 import { DashboardNav } from '../../components/dashboard-nav';
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const initialUser = user
+    ? {
+        email: user.email ?? '',
+        display_name: typeof user.user_metadata?.display_name === 'string' ? user.user_metadata.display_name : null,
+        avatar_url: typeof user.user_metadata?.avatar_url === 'string' ? user.user_metadata.avatar_url : null,
+        role: user.app_metadata?.role ?? user.user_metadata?.role ?? null,
+      }
+    : null;
+
   return (
     <div className="min-h-screen bg-cream">
-      <DashboardNav />
+      <DashboardNav initialUser={initialUser} />
       {children}
     </div>
   );

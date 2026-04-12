@@ -86,12 +86,14 @@ export async function updateSession(
         // Set fresh cookies with correct domain
         for (const { name, value, options: cookieOpts } of cookiesToSet) {
           const isAuthCookie = SB_AUTH_COOKIE_RE.test(name);
+          const maxAge = isAuthCookie && typeof cookieOpts?.maxAge !== 'number' ? 60 * 60 * 24 * 7 : cookieOpts?.maxAge;
 
           supabaseResponse.cookies.set(name, value, {
             ...cookieOpts,
             sameSite: "lax" as const,
             secure: isProd,
             path: "/",
+            ...(typeof maxAge === 'number' ? { maxAge } : {}),
             ...(cookieDomain && isAuthCookie ? { domain: cookieDomain } : {}),
           });
         }

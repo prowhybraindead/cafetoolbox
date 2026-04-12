@@ -4,6 +4,33 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## [0.4.5-beta] - 2026-04-12
+
+- **Fixed JWT bloat and chunked cookie explosion by sanitizing metadata and adding stale chunk cleanup. Production login should now work without 431/494 errors.**
+- Phase A JWT size reduction:
+  - `apps/dashboard/src/app/api/me/route.ts`: `supabase.auth.updateUser()` now writes allowlisted metadata only, with `display_name` capped at 80 chars and `avatar_url` restricted to http/https URLs up to 1024 chars.
+  - `apps/dashboard/src/app/api/admin/users/[userId]/route.ts`: admin profile updates now merge only allowlisted auth metadata and stop spreading arbitrary auth user metadata.
+  - `apps/dashboard/src/app/api/create-user/route.ts`: new users are created with minimal auth metadata only.
+- Phase B stale chunk cleanup:
+  - `packages/supabase/src/client.ts`: production-only cleanup removes stale `sb-*-auth-token.*` chunks that are absent from the fresh cookie set.
+  - `packages/supabase/src/server.ts`: same production-only cleanup for server-side responses.
+- Phase C auth churn reduction:
+  - `apps/dashboard/src/app/dashboard/layout.tsx`: passes minimal user data to the dashboard navbar so it does not need an immediate `/api/me` fetch on first render.
+  - `apps/dashboard/src/app/dashboard/page.tsx`: removed redundant `getUser()` call.
+- Production cookie strategy remains aligned to `.cafetoolbox.app` with `secure`, `path=/`, `sameSite=lax`, and a 7-day max age fallback when Supabase does not provide one.
+
+## [0.4.4-beta] - 2026-04-12
+
+- **Critical audit completed**: Root-cause analysis for persistent `sb-*-auth-token.0..16` chunk explosion and HTTP 431/494 in production.
+- Findings:
+  - JWT/session payload is likely far above 4KB when serialized by Supabase SSR, forcing heavy cookie chunking.
+  - Metadata write paths allow unbounded profile fields (especially `avatar_url`) into `user_metadata`, which is embedded in auth user payload and can bloat session cookies.
+  - Current simplified cookie handlers set fresh cookies but do not proactively clear stale high-index chunk remnants when payload shape shrinks.
+  - Multiple auth reads per navigation path (middleware + server page + `/api/me`) increase cookie churn frequency.
+- Audit documents updated:
+  - `AI.md`: Added full structured audit (client inventory, cookie config matrix, JWT-size analysis, per-request flow, root cause, production-first fix plan).
+- No production code fix applied in this audit entry; this release records investigation results and fix direction only.
+
 ## [0.4.3-beta] - 2026-04-12
 
 - **Fixed cookie chunking for production domain .cafetoolbox.app**
