@@ -149,55 +149,61 @@ CafeToolbox includes real-time health monitoring:
 
 ### Running Health Checks
 
-The health check worker script is included but requires manual setup:
+CafeToolbox now ships a standalone monitoring backend that runs as a worker loop and writes directly to Supabase.
 
-#### Option 1: Vercel Cron Jobs (Recommended for Vercel deployment)
-
-Add to `vercel.json`:
-
-```json
-{
-  "crons": [
-    {
-      "path": "/api/crons/health-check",
-      "schedule": "0 0 * * *"
-    }
-  ]
-}
-```
-
-Create `apps/dashboard/src/app/api/crons/health-check/route.ts` (calls health-check-worker).
-
-#### Option 2: External Cron Service
-
-Use services like:
-- **GitHub Actions**: Free, reliable for scheduled tasks
-- **Easy Cron**: Free external Cron service
-- **Haraka**: Node.js cron runner
-
-Call health check endpoint periodically:
+#### Monitoring worker (continuous)
 
 ```bash
-curl -X POST https://cafetoolbox.app/api/health-check \
-  -H "X-Health-Check-Token: $HEALTH_CHECK_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"service_id": "uuid", "is_healthy": true, "response_time_ms": 145}'
+pnpm monitoring:worker
 ```
 
-#### Option 3: Manual/Local Script
+#### Single monitoring cycle (manual validation)
 
 ```bash
-HEALTH_CHECK_API_SECRET=your_secret DASHBOARD_BASE_URL=https://cafetoolbox.app \
-  node scripts/health-check-worker.mjs
+pnpm monitoring:once
 ```
+
+#### Daily uptime aggregation (for 7d / 30d charts)
+
+```bash
+pnpm monitoring:aggregate-daily
+```
+
+Optional explicit date (UTC day boundary):
+
+```bash
+node scripts/aggregate-uptime-daily.mjs --date=2026-04-11
+```
+
+#### Scheduling recommendations
+
+- Run `pnpm monitoring:worker` on a small always-on server (1 CPU / 1GB RAM is sufficient).
+- Run `pnpm monitoring:aggregate-daily` once per day shortly after UTC midnight.
+- Existing `/api/health-check` and `/api/crons/health-check` routes remain compatible for fallback/manual ingestion.
 
 ### Environment Variables
 
-For health checking:
+For health monitoring backend:
 
 ```env
-HEALTH_CHECK_API_SECRET=<secret-token-for-health-check-endpoint>
-DASHBOARD_BASE_URL=https://cafetoolbox.app (for health check worker)
+NEXT_PUBLIC_SUPABASE_URL=<supabase-project-url>
+SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
+
+# Worker controls
+MONITORING_INTERVAL_SECONDS=30
+MONITORING_MAX_CONCURRENCY=6
+MONITORING_REQUEST_TIMEOUT_MS=5000
+MONITORING_MAX_RETRIES=1
+
+# Incident thresholds
+INCIDENT_FAILURE_THRESHOLD=3
+INCIDENT_IDENTIFIED_THRESHOLD=5
+INCIDENT_MAJOR_THRESHOLD=8
+INCIDENT_RECOVERY_THRESHOLD=2
+
+# Optional alert integrations
+DISCORD_WEBHOOK_URL=<discord-webhook-url>
+ALERT_WEBHOOK_URL=<generic-http-webhook-url>
 ```
 
 ### Health Endpoints
@@ -213,6 +219,17 @@ Admin users can configure health check endpoints in the database:
 - **Table**: `service_health_config`
 - **Fields**: `health_check_url`, `method`, `expected_status_code`, `timeout_ms`, `check_interval_seconds`, `enabled`
 - **View**: Will be added to admin dashboard in Phase 3
+
+### Daily Aggregation Table
+
+For historical charts, worker aggregation writes to `service_uptime_daily` (migration: `packages/supabase/migrations/0014_add_service_uptime_daily.sql`):
+
+- `service_uuid`
+- `date` (UTC)
+- `uptime_percentage`
+- `avg_response_time`
+- `total_checks`
+- `failed_checks`
 
 ## Authentication And Password Flows
 

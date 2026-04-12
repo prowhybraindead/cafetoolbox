@@ -4,6 +4,85 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## Versioning Format Notes
+
+This project uses a **dual-layer versioning system**:
+
+- **Root / Platform Version** (e.g., `0.4.6-beta`): Platform infrastructure, auth, dashboard, architecture changes
+- **App Version** (e.g., `status 0.1.0`): Individual app lifecycle (status, tools, etc.)
+
+**Format for platform-level changes:**
+```markdown
+## [0.4.6-beta] - 2026-04-12
+- Platform changes...
+```
+
+**Format for app-related changes:**
+```markdown
+## [0.4.7-beta] - (status 0.1.0)
+- App-specific changes...
+```
+
+See [RULES.md](RULES.md#5-versioning-rules) for complete versioning rules.
+
+---
+
+## [0.4.8-beta] - 2026-04-12
+
+- Built production-focused monitoring backend worker system (non-API architecture):
+  - Added resilient worker loop at `scripts/health-check-worker.mjs` with interval scheduling, concurrency limits, per-request timeout, and lightweight retry.
+  - Added modular monitoring engine under `scripts/monitoring/*`:
+    - `health-checker.mjs`
+    - `incident-engine.mjs`
+    - `notifier.mjs`
+    - `aggregation-job.mjs`
+    - `supabase-rest.mjs`
+    - `config.mjs`
+    - `logger.mjs`
+- Implemented incident lifecycle automation:
+  - Auto-create incidents on consecutive failures.
+  - Auto-escalate incident status when failures continue.
+  - Auto-resolve incidents after consecutive recovery checks.
+  - Service status updates are synchronized (`operational` / `degraded` / `partial_outage` / `major_outage`).
+- Implemented notification delivery:
+  - Discord webhook support (`DISCORD_WEBHOOK_URL`).
+  - Generic HTTP webhook support (`ALERT_WEBHOOK_URL`).
+  - Non-blocking and failure-safe dispatch.
+- Implemented historical aggregation path for chart windows:
+  - Added `scripts/aggregate-uptime-daily.mjs`.
+  - Added migration `packages/supabase/migrations/0014_add_service_uptime_daily.sql` for `service_uptime_daily`.
+  - Daily rollups now persist `uptime_percentage`, `avg_response_time`, `total_checks`, and `failed_checks` per service/day.
+- Added root scripts:
+  - `pnpm monitoring:worker`
+  - `pnpm monitoring:once`
+  - `pnpm monitoring:aggregate-daily`
+- Added architecture documentation:
+  - `doc/MONITORING_BACKEND.md`
+
+## [0.4.7-beta] - (status 0.1.0) - 2026-04-12
+
+- **Introduced Public Status System as independent product surface.**
+- Created `apps/status` with server-side rendering (SSR) for public health monitoring:
+  - Real-time system health summary with priority cascade status calculation
+  - 24-hour average uptime calculated from actual heartbeat data via RPC
+  - Per-service health monitoring with graceful degradation on RPC failure
+  - Incident communication system displaying 6 most recent incidents with update timelines
+  - Multi-timezone clocks (US Eastern, UTC, Vietnam) with SSR-safe hydration
+- Integrated with heartbeat monitoring system:
+  - Uses RPC `get_service_health_status()` for real uptime calculations
+  - Fallback to cached `services.uptime` and `services.status` on RPC errors
+  - Displays response time, last check timestamp, and consecutive failures
+- Production-ready deployment configuration:
+  - Independent Vercel deployment on port 3001
+  - Public read access to Supabase via anon key (no auth required)
+  - Serverless functions for SSR rendering with CDN edge caching
+- Comprehensive system documentation:
+  - Full architecture overview with SSR flow diagrams
+  - Reliability strategy and fault tolerance mechanisms
+  - Scalability considerations and evolution roadmap
+  - Observability context and monitoring system integration
+  - Current limitations and phased improvement roadmap
+
 ## [0.4.6-beta] - 2026-04-12
 
 - **Created safe cleanup script for bloated raw_user_meta_data + enforced minimal metadata replacement to prevent future JWT bloat.**

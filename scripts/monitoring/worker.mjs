@@ -1,0 +1,186 @@
+import { loadMonitoringConfig } from "./config.mjs";
+import { runHealthCheck } from "./health-checker.mjs";
+import { SupabaseRestClient } from "./supabase-rest.mjs";
+import { IncidentNotifier } from "./notifier.mjs";
+import { IncidentEngine } from "./incident-engine.mjs";
+import { logger } from "./logger.mjs";
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runWithConcurrency(items, maxConcurrency, handler) {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(maxConcurrency, items.length) }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (!item) break;
+
+      await handler(item);
+    }
+  });
+
+  await Promise.all(workers);
+}
+
+function normalizeConfigRow(row, fallbackTimeoutMs) {
+  return {
+    serviceId: row.service_id,
+    url: row.health_check_url,
+    method: row.method || "GET",
+    expectedStatusCode:
+      typeof row.expected_status_code === "number" ? row.expected_status_code : null,
+    timeoutMs: typeof row.timeout_ms === "number" ? row.timeout_ms : fallbackTimeoutMs,
+    intervalSeconds:
+      typeof row.check_interval_seconds === "number" && row.check_interval_seconds > 0
+        ? row.check_interval_seconds
+        : null,
+  };
+}
+
+function isDue(lastCheckedAt, nowMs, intervalSeconds, globalIntervalSeconds) {
+  const effectiveInterval = intervalSeconds || globalIntervalSeconds;
+  if (!lastCheckedAt) return true;
+  return nowMs - lastCheckedAt >= effectiveInterval * 1000;
+}
+
+export async function runMonitoringWorker({ once = false } = {}) {
+  const config = loadMonitoringConfig();
+  const db = new SupabaseRestClient({
+    supabaseUrl: config.supabaseUrl,
+    serviceRoleKey: config.serviceRoleKey,
+  });
+  const notifier = new IncidentNotifier({
+    discordWebhookUrl: config.discordWebhookUrl,
+    genericWebhookUrl: config.genericWebhookUrl,
+  });
+  const incidentEngine = new IncidentEngine({
+    db,
+    notifier,
+    thresholds: {
+      incidentFailureThreshold: config.incidentFailureThreshold,
+      incidentIdentifiedThreshold: config.incidentIdentifiedThreshold,
+      incidentMajorThreshold: config.incidentMajorThreshold,
+      incidentRecoveryThreshold: config.incidentRecoveryThreshold,
+    },
+  });
+
+  const lastCheckedMap = new Map();
+  let keepRunning = true;
+
+  const stopHandler = () => {
+    logger.warn("Received shutdown signal, stopping worker loop gracefully");
+    keepRunning = false;
+  };
+
+  process.once("SIGINT", stopHandler);
+  process.once("SIGTERM", stopHandler);
+
+  logger.info("Monitoring worker started", {
+    intervalSeconds: config.workerIntervalSeconds,
+    maxConcurrency: config.maxConcurrency,
+    timeoutMs: config.requestTimeoutMs,
+    maxRetries: config.maxRetries,
+  });
+
+  while (keepRunning) {
+    const cycleStartedAt = Date.now();
+
+    try {
+      const rawConfigs = await db.getEnabledServiceConfigs();
+      const serviceConfigs = rawConfigs.map((row) => normalizeConfigRow(row, config.requestTimeoutMs));
+      const services = await db.getServices();
+      const serviceById = new Map(services.map((service) => [service.id, service]));
+
+      const nowMs = Date.now();
+      const dueChecks = serviceConfigs.filter((service) =>
+        isDue(
+          lastCheckedMap.get(service.serviceId),
+          nowMs,
+          service.intervalSeconds,
+          config.workerIntervalSeconds
+        )
+      );
+
+      logger.info("Running monitoring cycle", {
+        configuredServices: serviceConfigs.length,
+        dueServices: dueChecks.length,
+      });
+
+      let okCount = 0;
+      let failedCount = 0;
+
+      await runWithConcurrency(dueChecks, config.maxConcurrency, async (serviceConfig) => {
+        const health = await runHealthCheck(serviceConfig, {
+          maxRetries: config.maxRetries,
+          retryDelayMs: config.retryDelayMs,
+        });
+
+        const heartbeat = {
+          service_id: serviceConfig.serviceId,
+          is_healthy: health.isHealthy,
+          response_time_ms: health.responseTimeMs,
+          http_status: health.httpStatus,
+          error_message: health.errorMessage,
+          checked_at: new Date().toISOString(),
+        };
+
+        try {
+          await db.insertHeartbeat(heartbeat);
+          lastCheckedMap.set(serviceConfig.serviceId, Date.now());
+
+          const recentHeartbeats = await db.getRecentHeartbeats(
+            serviceConfig.serviceId,
+            config.heartbeatLookback
+          );
+          const service = serviceById.get(serviceConfig.serviceId) || {
+            id: serviceConfig.serviceId,
+            name: serviceConfig.serviceId,
+          };
+
+          await incidentEngine.processHeartbeat(service, recentHeartbeats);
+
+          if (health.isHealthy) {
+            okCount += 1;
+          } else {
+            failedCount += 1;
+            logger.warn("Health check failed", {
+              serviceId: serviceConfig.serviceId,
+              error: health.errorMessage,
+              httpStatus: health.httpStatus,
+              responseTimeMs: health.responseTimeMs,
+            });
+          }
+        } catch (error) {
+          failedCount += 1;
+          logger.error("Failed processing heartbeat", {
+            serviceId: serviceConfig.serviceId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
+
+      logger.info("Monitoring cycle complete", {
+        okCount,
+        failedCount,
+        cycleDurationMs: Date.now() - cycleStartedAt,
+      });
+    } catch (error) {
+      logger.error("Monitoring cycle crashed but worker will continue", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    if (once) {
+      break;
+    }
+
+    const elapsedMs = Date.now() - cycleStartedAt;
+    const sleepMs = Math.max(1000, config.workerIntervalSeconds * 1000 - elapsedMs);
+    await sleep(sleepMs);
+  }
+
+  process.removeListener("SIGINT", stopHandler);
+  process.removeListener("SIGTERM", stopHandler);
+  logger.info("Monitoring worker stopped");
+}

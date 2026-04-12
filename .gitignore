@@ -63,4 +63,6 @@ coverage/
 # Supabase
 supabase/.branches/
 supabase/.temp/
-packages/supabase/migrations/
+
+#claude
+.claude/
