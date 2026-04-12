@@ -2,7 +2,14 @@
  * @cafetoolbox/supabase - Middleware Supabase client
  *
  * Creates a Supabase client for use in Next.js middleware.
- * Handles session refresh and cookie management.
+ * Handles session refresh and route protection.
+ *
+ * Cookie strategy (MUST match client.ts and server.ts):
+ *   - Production: domain = ".cafetoolbox.app", secure = true, sameSite = lax
+ *   - Development: no domain (host-only), secure = false, sameSite = lax
+ *
+ * The middleware ONLY refreshes sessions and sets fresh cookies.
+ * It does NOT clear cookies on every request — that's logout's job.
  */
 
 import { createServerClient } from "@supabase/ssr";
@@ -21,21 +28,33 @@ type CookieItem = {
 };
 
 /**
- * Cookie domain configuration for cross-subdomain auth.
+ * Regex to detect Supabase auth cookie names.
+ * MUST stay in sync with client.ts and server.ts.
  */
-const AUTH_COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN ?? "localhost";
+const SB_AUTH_COOKIE_RE =
+  /^sb-[^-]+-auth-token(?:\.\d+)?$|^sb-[^-]+-auth-token-code-verifier$/;
 
-function isSupabaseAuthCookieName(name: string) {
-  return /^sb-.*-auth-token(?:\.\d+)?$/.test(name) || /^sb-.*-auth-token-code-verifier$/.test(name);
-}
-
-function resolveCookieDomain(domain: string | undefined) {
+/**
+ * Resolve cookie domain from raw value.
+ * Returns undefined for localhost (host-only), otherwise the domain string.
+ */
+function resolveCookieDomain(domain: string | undefined): string | undefined {
   if (!domain) return undefined;
-  if (domain === "localhost" || domain === "127.0.0.1") {
-    return undefined;
-  }
+  if (domain === "localhost" || domain === "127.0.0.1") return undefined;
   return domain;
 }
+
+/**
+ * Get effective cookie domain from env or options override.
+ */
+function getEffectiveDomain(override?: string): string | undefined {
+  const raw = override ?? process.env.AUTH_COOKIE_DOMAIN ?? "localhost";
+  return resolveCookieDomain(raw);
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export async function updateSession(
   request: NextRequest,
@@ -43,94 +62,51 @@ export async function updateSession(
 ) {
   const supabaseUrl = options.supabaseUrl ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = options.supabaseAnonKey ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const cookieDomain = resolveCookieDomain(options.authCookieDomain ?? AUTH_COOKIE_DOMAIN);
+  const cookieDomain = getEffectiveDomain(options.authCookieDomain);
+  const isProd = process.env.NODE_ENV === "production";
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Your project's URL and Key are required to create a Supabase client!");
   }
 
-  let supabaseResponse = NextResponse.next({
-    request,
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet: CookieItem[]) {
+        // Copy new cookies into the request so Supabase can read them
+        cookiesToSet.forEach(({ name, value }) => {
+          request.cookies.set(name, value);
+        });
+        supabaseResponse = NextResponse.next({ request });
+
+        // Set fresh cookies with correct domain
+        for (const { name, value, options: cookieOpts } of cookiesToSet) {
+          const isAuthCookie = SB_AUTH_COOKIE_RE.test(name);
+
+          supabaseResponse.cookies.set(name, value, {
+            ...cookieOpts,
+            sameSite: "lax" as const,
+            secure: isProd,
+            path: "/",
+            ...(cookieDomain && isAuthCookie ? { domain: cookieDomain } : {}),
+          });
+        }
+      },
+    },
   });
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseAnonKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet: CookieItem[]) {
-          const incomingCookieNames = new Set(cookiesToSet.map(({ name }) => name));
-          const existingCookieNames = request.cookies
-            .getAll()
-            .map((cookie) => cookie.name)
-            .filter(isSupabaseAuthCookieName);
-
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-
-          // Remove stale auth cookie chunks that are not part of the new set.
-          existingCookieNames.forEach((name) => {
-            if (incomingCookieNames.has(name)) {
-              return;
-            }
-
-            supabaseResponse.cookies.set(name, "", {
-              maxAge: 0,
-              path: "/",
-              sameSite: "lax",
-              secure: process.env.NODE_ENV === "production",
-            });
-
-            if (cookieDomain) {
-              supabaseResponse.cookies.set(name, "", {
-                maxAge: 0,
-                path: "/",
-                sameSite: "lax",
-                secure: process.env.NODE_ENV === "production",
-                domain: cookieDomain,
-              });
-            }
-          });
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            const cookieOptions = {
-              ...options,
-              sameSite: "lax" as const,
-              secure: process.env.NODE_ENV === "production",
-              path: "/",
-            };
-
-            if (cookieDomain) {
-              // Clear any host-only cookie variant to avoid duplicate cookie header growth.
-              supabaseResponse.cookies.set(name, "", {
-                maxAge: 0,
-                path: "/",
-                sameSite: "lax",
-                secure: process.env.NODE_ENV === "production",
-              });
-            }
-
-            supabaseResponse.cookies.set(name, value, {
-              ...cookieOptions,
-              ...(cookieDomain ? { domain: cookieDomain } : {}),
-            });
-          });
-        },
-      },
-    }
-  );
-
-  // Refresh the session - this is important for keeping the user logged in
+  // Refresh the session — this is important for keeping the user logged in
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (isProd) {
+    console.log(`[middleware] ${request.nextUrl.pathname} — domain: ${cookieDomain ?? 'host-only'} — user: ${user ? user.email ?? user.id : 'null'}`);
+  }
 
   // If no user and trying to access protected routes, redirect to login
   if (

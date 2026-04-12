@@ -6,6 +6,7 @@ import { logout } from '@cafetoolbox/supabase/auth';
 export default function LogoutPage() {
   useEffect(() => {
     async function handleLogout() {
+      // logout() already calls clearAllAuthCookies() internally
       await logout();
       window.location.href = '/login';
     }

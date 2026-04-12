@@ -1,7 +1,8 @@
 /**
  * @cafetoolbox/supabase - Authentication Helpers
  *
- * Helper functions for authentication operations
+ * Helper functions for authentication operations.
+ * Keeps cookie handling minimal — login/logout only.
  */
 
 import { createClient as createBrowserClient } from './client';
@@ -29,6 +30,43 @@ export interface LogoutResult {
 export interface ForgotPasswordResult {
   success: boolean;
   error?: string;
+}
+
+/**
+ * Regex to detect Supabase auth cookie names.
+ * MUST stay in sync with client.ts, server.ts, middleware.ts.
+ */
+const SB_AUTH_COOKIE_RE =
+  /^sb-[^-]+-auth-token(?:\.\d+)?$|^sb-[^-]+-auth-token-code-verifier$/;
+
+/**
+ * Nuke ALL auth cookies across ALL domain variants.
+ * Only call after signOut() — this ensures no stale cookies persist.
+ *
+ * In production: clears host-only + .cafetoolbox.app variants
+ * In dev: clears host-only + .cafetoolbox.app variants (belt and suspenders)
+ */
+export function clearAllAuthCookies(): void {
+  if (typeof document === "undefined") return;
+
+  const secure = typeof window !== "undefined" && window.location.protocol === "https:";
+  const raw = document.cookie;
+  if (!raw) return;
+
+  const allNames = raw
+    .split("; ")
+    .map((c) => c.split("=")[0])
+    .filter((n): n is string => Boolean(n));
+  const authCookieNames = allNames.filter((n) => SB_AUTH_COOKIE_RE.test(n));
+
+  // Clear across both domain variants to be thorough
+  const domains: (string | undefined)[] = [undefined, ".cafetoolbox.app"];
+
+  for (const name of authCookieNames) {
+    for (const domain of domains) {
+      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax${secure ? "; Secure" : ""}${domain ? `; Domain=${domain}` : ""}`;
+    }
+  }
 }
 
 /**
@@ -69,7 +107,6 @@ export async function signup(
       };
     }
 
-    // Note: If auto-confirm is disabled, user needs to confirm email first
     return {
       success: true,
       message: data.session
@@ -87,7 +124,7 @@ export async function signup(
 }
 
 /**
- * Log in with email and password
+ * Log in with email and password.
  */
 export async function login(
   email: string,
@@ -137,7 +174,7 @@ export async function login(
 }
 
 /**
- * Log out current user
+ * Log out current user and nuke all auth cookies.
  */
 export async function logout(): Promise<LogoutResult> {
   const supabase = createBrowserClient();
@@ -151,6 +188,9 @@ export async function logout(): Promise<LogoutResult> {
         error: error.message,
       };
     }
+
+    // Nuke ALL auth cookie variants to prevent stale cookies on next login
+    clearAllAuthCookies();
 
     return { success: true };
   } catch (err) {

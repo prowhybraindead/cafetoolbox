@@ -2,7 +2,15 @@
  * @cafetoolbox/supabase - Browser (client-side) Supabase client
  *
  * Creates a Supabase client for use in Client Components.
- * Handles session management with cookies.
+ * Follows the official @supabase/ssr v0.6.x pattern for Next.js App Router.
+ *
+ * Cookie strategy:
+ *   - Production: domain = ".cafetoolbox.app", secure = true, sameSite = lax
+ *   - Development: no domain (host-only), secure = false, sameSite = lax
+ *
+ * Key insight: @supabase/ssr uses chunked cookies (sb-xxx-auth-token.0, .1, …)
+ * when the JWT exceeds 4KB. We must NOT interfere with Supabase's own
+ * getAll/setAll cycle — just provide clean cookie options per cookie.
  */
 
 import { createBrowserClient } from "@supabase/ssr";
@@ -13,65 +21,83 @@ type CookieItem = {
   options?: Record<string, unknown>;
 };
 
-const AUTH_COOKIE_DOMAIN = process.env.NEXT_PUBLIC_AUTH_COOKIE_DOMAIN;
+// ---------------------------------------------------------------------------
+// Cookie helpers
+// ---------------------------------------------------------------------------
 
-function isSupabaseAuthCookieName(name: string) {
-  return /^sb-.*-auth-token(?:\.\d+)?$/.test(name) || /^sb-.*-auth-token-code-verifier$/.test(name);
-}
-
-function inferProjectCookieDomain(hostname: string | undefined) {
-  if (!hostname) return undefined;
-  if (hostname === "localhost" || hostname === "127.0.0.1") return undefined;
-
-  // Project-specific safe fallback for shared subdomain auth.
-  if (hostname === "cafetoolbox.app" || hostname.endsWith(".cafetoolbox.app")) {
-    return ".cafetoolbox.app";
+/**
+ * Determine cookie domain from env or browser hostname.
+ * Returns `undefined` for localhost (host-only cookie), ".cafetoolbox.app" for prod.
+ */
+function getCookieDomain(): string | undefined {
+  // Priority 1: explicit env variable (NEXT_PUBLIC_ so it's available in browser)
+  const envDomain = process.env.NEXT_PUBLIC_AUTH_COOKIE_DOMAIN;
+  if (envDomain && envDomain !== "localhost" && envDomain !== "127.0.0.1") {
+    return envDomain;
   }
 
+  // Priority 2: infer from browser hostname
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (
+      hostname &&
+      hostname !== "localhost" &&
+      hostname !== "127.0.0.1" &&
+      (hostname === "cafetoolbox.app" || hostname.endsWith(".cafetoolbox.app"))
+    ) {
+      return ".cafetoolbox.app";
+    }
+  }
+
+  // Development: no domain → host-only cookie
   return undefined;
 }
 
-function resolveCookieDomain(domain: string | undefined) {
-  if (!domain) return undefined;
-  if (domain === "localhost" || domain === "127.0.0.1") {
-    return undefined;
-  }
-  return domain;
+/**
+ * Check if we're on HTTPS (production).
+ */
+function isSecure(): boolean {
+  return typeof window !== "undefined" && window.location.protocol === "https:";
 }
 
+/**
+ * Build a Set-Cookie string from parts.
+ */
 function toCookieString(
   name: string,
   value: string,
-  options: Record<string, unknown> = {}
-) {
+  opts: Record<string, unknown> = {}
+): string {
   const parts: string[] = [`${name}=${value}`];
-
-  if (typeof options.path === "string") {
-    parts.push(`Path=${options.path}`);
-  }
-  if (typeof options.domain === "string" && options.domain.length > 0) {
-    parts.push(`Domain=${options.domain}`);
-  }
-  if (typeof options.expires === "string") {
-    parts.push(`Expires=${options.expires}`);
-  }
-  if (typeof options.maxAge === "number") {
-    parts.push(`Max-Age=${options.maxAge}`);
-  }
-  if (typeof options.sameSite === "string") {
-    parts.push(`SameSite=${options.sameSite}`);
-  }
-  if (options.secure === true) {
-    parts.push("Secure");
-  }
-
+  if (opts.path) parts.push(`Path=${opts.path}`);
+  if (typeof opts.domain === "string" && opts.domain.length > 0) parts.push(`Domain=${opts.domain}`);
+  if (typeof opts.maxAge === "number") parts.push(`Max-Age=${opts.maxAge}`);
+  if (typeof opts.expires === "string") parts.push(`Expires=${opts.expires}`);
+  if (typeof opts.sameSite === "string") parts.push(`SameSite=${opts.sameSite}`);
+  if (opts.secure === true) parts.push("Secure");
   return parts.join("; ");
 }
 
+/**
+ * Regex to detect Supabase auth cookie names.
+ * Matches: sb-<ref>-auth-token, sb-<ref>-auth-token.0..n, sb-<ref>-auth-token-code-verifier
+ */
+const SB_AUTH_COOKIE_RE =
+  /^sb-[^-]+-auth-token(?:\.\d+)?$|^sb-[^-]+-auth-token-code-verifier$/;
+
+// ---------------------------------------------------------------------------
+// Exported helpers (used by auth.ts)
+// ---------------------------------------------------------------------------
+
+export { getCookieDomain, isSecure, toCookieString, SB_AUTH_COOKIE_RE };
+
+// ---------------------------------------------------------------------------
+// Create Browser Client
+// ---------------------------------------------------------------------------
+
 export function createClient() {
-  const inferredDomain =
-    typeof window !== "undefined" ? inferProjectCookieDomain(window.location.hostname) : undefined;
-  const cookieDomain = resolveCookieDomain(AUTH_COOKIE_DOMAIN ?? inferredDomain);
+  const cookieDomain = getCookieDomain();
+  const secure = isSecure();
 
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,81 +105,36 @@ export function createClient() {
     {
       cookies: {
         getAll() {
-          if (typeof document === "undefined") {
-            return [];
-          }
-          const cookieStr = document.cookie;
-          if (!cookieStr) return [];
-          return cookieStr.split("; ").map((cookie) => {
-            const [name, ...valueParts] = cookie.split("=");
-            return {
-              name,
-              value: valueParts.join("="),
-            };
+          if (typeof document === "undefined") return [];
+          const raw = document.cookie;
+          if (!raw) return [];
+          return raw.split("; ").map((entry) => {
+            const [name, ...rest] = entry.split("=");
+            return { name, value: rest.join("=") };
           });
         },
+
         setAll(cookiesToSet: CookieItem[]) {
-          if (typeof document === "undefined") {
-            return;
-          }
+          if (typeof document === "undefined") return;
 
-          const incomingCookieNames = new Set(cookiesToSet.map(({ name }) => name));
-          const existingCookieNames = document.cookie
-            ? document.cookie
-                .split("; ")
-                .map((cookie) => cookie.split("=")[0])
-                .filter((name): name is string => Boolean(name))
-            : [];
+          for (const { name, value, options } of cookiesToSet) {
+            const isAuthCookie = SB_AUTH_COOKIE_RE.test(name);
 
-          // Remove stale Supabase auth cookies/chunks that are no longer emitted.
-          existingCookieNames.forEach((name) => {
-            if (!isSupabaseAuthCookieName(name)) {
-              return;
-            }
-            if (incomingCookieNames.has(name)) {
-              return;
-            }
-
-            const clearOptions = {
-              path: "/",
-              maxAge: 0,
+            // Build cookie options — single authoritative domain variant per cookie
+            const cookieOpts: Record<string, unknown> = {
+              path: options?.path ?? "/",
               sameSite: "lax",
-              secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
-            } as Record<string, unknown>;
-
-            // Clear host-only variant.
-            document.cookie = toCookieString(name, "", clearOptions);
-
-            // Clear domain variant.
-            if (cookieDomain) {
-              document.cookie = toCookieString(name, "", {
-                ...clearOptions,
-                domain: cookieDomain,
-              });
-            }
-          });
-
-          cookiesToSet.forEach(({ name, value, options }) => {
-            const mergedOptions = {
+              secure,
               ...(options ?? {}),
-              path: "/",
-              sameSite: "lax",
-              secure: typeof window !== "undefined" ? window.location.protocol === "https:" : false,
-              ...(cookieDomain ? { domain: cookieDomain } : {}),
-            } as Record<string, unknown>;
+            };
 
-            if (cookieDomain) {
-              // Remove old host-only cookie variant to prevent duplicate auth cookies in requests.
-              document.cookie = toCookieString(name, "", {
-                path: "/",
-                maxAge: 0,
-                sameSite: "lax",
-                secure: mergedOptions.secure,
-              });
+            // Only set domain on auth cookies when we have one
+            if (isAuthCookie && cookieDomain) {
+              cookieOpts.domain = cookieDomain;
             }
 
-            document.cookie = toCookieString(name, value, mergedOptions);
-          });
+            document.cookie = toCookieString(name, value, cookieOpts);
+          }
         },
       },
     }

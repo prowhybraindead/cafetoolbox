@@ -4,6 +4,66 @@ All notable changes to this project are documented in this file.
 
 This project follows Keep a Changelog and Semantic Versioning.
 
+## [0.4.3-beta] - 2026-04-12
+
+- **Fixed cookie chunking for production domain .cafetoolbox.app**
+- Complete rewrite of cookie handling — back to official Supabase SSR pattern:
+  - `packages/supabase/src/client.ts`: Simplified `setAll()` to just set cookies with correct domain. No Phase 1/2 clearing, no `LEGACY_CLEAR_DOMAINS`. Let Supabase manage its own cookies.
+  - `packages/supabase/src/server.ts`: Simplified `makeCookieHandlers()` — only sets cookies with correct domain. No pre-clearing.
+  - `packages/supabase/src/middleware.ts`: Removed `deduplicateAuthCookies()` and `clearStaleAuthCookies()`. Middleware ONLY refreshes sessions and sets fresh cookies. No cookie clearing on every request.
+- Simplified auth helpers:
+  - `packages/supabase/src/auth.ts`: Removed `clearDuplicateAuthCookies()`. Kept `clearAllAuthCookies()` for logout only. `login()` no longer touches cookies after `signInWithPassword()`.
+  - `apps/dashboard/src/app/logout/page.tsx`: Simplified — `logout()` handles all cookie cleanup.
+  - `apps/dashboard/src/app/(auth)/login/page.tsx`: No cookie manipulation after login.
+- Cookie config:
+  - Production: `domain=.cafetoolbox.app`, `secure=true`, `sameSite=lax`, `path=/`
+  - Development: no domain (host-only), `secure=false`, `sameSite=lax`, `path=/`
+- Debug logging only in production middleware.
+
+## [0.4.2-beta] - 2026-04-12
+
+- **Critical fix**: Login regression introduced in 0.4.1-beta — login succeeded but redirected back to `/login`:
+  - Root cause 1: `clearDuplicateAuthCookies()` was called inside `login()` immediately after Supabase set fresh cookies, destroying the new session
+  - Root cause 2: Same function was called again in the login page component — double nuke
+  - Root cause 3: `.env.local` contained duplicate `AUTH_COOKIE_DOMAIN` keys (localhost + .cafetoolbox.app), the latter overriding the former, causing middleware to use `.cafetoolbox.app` domain in dev
+- Rewrote cookie cleanup functions in `packages/supabase/src/auth.ts`:
+  - `clearDuplicateAuthCookies()`: Now environment-aware — only clears the OPPOSITE domain variant (dev clears .cafetoolbox.app, prod clears host-only). Safe to call after login.
+  - `clearAllAuthCookies()`: New function for logout — nukes ALL cookies across ALL domains
+  - Removed `clearDuplicateAuthCookies()` call from `login()` (Supabase's `setAll()` handles dedup)
+  - `logout()` now uses `clearAllAuthCookies()` instead
+- Updated login flow:
+  - Removed `clearDuplicateAuthCookies()` from login page (no longer needed)
+  - `client.ts setAll()` already handles dedup by clearing opposite domain variants
+- Updated logout flow:
+  - Now uses `clearAllAuthCookies()` to nuke all cookie variants on sign out
+- Added debug logging:
+  - Middleware logs cookie domain resolution and user detection per request
+  - Login/logout flow logs cookie operations
+- Fixed `.env.local`: Commented out production `AUTH_COOKIE_DOMAIN=.cafetoolbox.app` that was overriding localhost
+
+## [0.4.1-beta] - 2026-04-12
+
+- **Critical fix**: Resolved cookie duplication causing 494 REQUEST_HEADER_TOO_LARGE errors:
+  - Browser accumulated ~17 duplicate `sb-*` auth cookies (host-only + domain-scoped variants)
+  - Root cause: inconsistent cookie domain handling across client.ts, server.ts, and middleware.ts
+- Rewrote cookie management in all three Supabase client files:
+  - `packages/supabase/src/client.ts`: Standardized to single `resolveCookieDomain()`, phase-based `setAll()` (clear stale → set fresh)
+  - `packages/supabase/src/server.ts`: Extracted shared `makeCookieHandlers()`, eliminated code duplication between `createClient` and `createAdminClient`
+  - `packages/supabase/src/middleware.ts`: Added pre-emptive `deduplicateAuthCookies()` that removes host-only variants before session refresh
+- Added `clearDuplicateAuthCookies()` in `packages/supabase/src/auth.ts`:
+  - Nukes ALL auth cookie variants (host-only + .cafetoolbox.app) to prevent accumulation
+  - Called automatically after `login()` and `logout()` success
+  - Exported for manual call from login page
+- Updated auth flow cleanup:
+  - `/login` page calls `clearDuplicateAuthCookies()` after successful login
+  - `/logout` page calls `clearDuplicateAuthCookies()` after sign out
+- Updated `apps/dashboard/src/proxy.ts`: Removed redundant public route check, now thin wrapper to `updateSession()`
+- Updated `.env.example` with clearer documentation for `AUTH_COOKIE_DOMAIN` dev vs prod values
+- All three cookie handlers now use consistent:
+  - `SB_AUTH_COOKIE_RE` regex for identifying auth cookies
+  - `resolveCookieDomain()` for domain resolution
+  - Phase-based approach: clear stale → clear host-only variant → set with single domain
+
 ## [0.4.0-beta] - 2026-04-11
 
 - **Major feature**: Real-time service health monitoring via heartbeat logs:

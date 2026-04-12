@@ -20,6 +20,9 @@ export default async function AuthCallbackPage({
   if (params.code) {
     const supabase = await createServerClient();
     await supabase.auth.exchangeCodeForSession(params.code);
+    // Note: Cookie deduplication is handled automatically by:
+    //   - server.ts setAll() (clears host-only variant when domain is configured)
+    //   - middleware.ts updateSession() (pre-emptive dedup before refresh)
   }
 
   if (params.type === 'recovery') {

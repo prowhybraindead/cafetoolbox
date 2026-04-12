@@ -1,3 +1,15 @@
+/**
+ * CafeToolbox Dashboard - Route Protection Middleware (Next.js 16)
+ *
+ * This is the active middleware entry point. It uses the updated
+ * updateSession() from @cafetoolbox/supabase which includes:
+ *   - Pre-emptive auth cookie deduplication (removes host-only variants)
+ *   - Stale cookie cleanup across all domain variants
+ *   - Single authoritative cookie domain per auth cookie
+ *
+ * The middleware-updated.ts file is kept as backup only.
+ */
+
 import { updateSession } from "@cafetoolbox/supabase";
 import { type NextRequest } from "next/server";
 
@@ -6,31 +18,16 @@ export async function proxy(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const authCookieDomain = process.env.AUTH_COOKIE_DOMAIN ?? "localhost";
 
-  // Update session first
+  // updateSession() now handles:
+  //  1. Deduplication of host-only vs domain-scoped auth cookies
+  //  2. Stale cookie cleanup
+  //  3. Session refresh with single authoritative domain
+  //  4. Route protection (redirect to /login if unauthenticated)
   const response = await updateSession(request, {
     supabaseUrl,
     supabaseAnonKey,
     authCookieDomain,
   });
-
-  // Get pathname
-  const { pathname } = request.nextUrl;
-
-  // Public routes (no auth required)
-  const publicRoutes = [
-    "/",
-    "/login",
-    "/register",
-    "/forgot-password",
-    "/auth/callback",
-    "/auth/reset-password",
-  ];
-  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(route));
-
-  // Skip route protection for public routes and auth callback
-  if (isPublicRoute) {
-    return response;
-  }
 
   return response;
 }
