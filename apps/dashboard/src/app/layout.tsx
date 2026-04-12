@@ -32,7 +32,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" data-scroll-behavior="smooth" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased">
+      <body suppressHydrationWarning className="font-sans antialiased">
         <Script
           src="https://code.iconify.design/3/3.1.1/iconify.min.js"
           strategy="afterInteractive"
