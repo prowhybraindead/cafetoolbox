@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useRef, useEffect, type ReactNode, type SVGProps } from 'react';
+import { BrandMark } from '@cafetoolbox/ui';
 
 function IconShell({ children, className }: { children: ReactNode; className?: string }) {
   return (
@@ -174,9 +175,7 @@ export function DashboardNav({ initialUser }: { initialUser?: UserInfo | null })
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 bg-neon rounded-lg flex items-center justify-center">
-              <TerminalIcon className="h-4 w-4 text-charcoal" />
-            </div>
+            <BrandMark size={32} variant="on-light" />
             <span className="text-lg font-bold tracking-tight text-charcoal">CafeToolbox</span>
           </Link>
 

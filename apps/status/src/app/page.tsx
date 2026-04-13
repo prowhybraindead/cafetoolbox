@@ -235,7 +235,7 @@ export default async function StatusPage() {
         <header className="flex flex-col gap-6 border-b border-borderLight pb-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-charcoal p-1.5 shadow-[0_10px_30px_rgba(18,18,18,0.15)] ring-1 ring-black/5">
-              <BrandMark className="h-12 w-12 shrink-0 rounded-xl" size={48} />
+              <BrandMark className="h-12 w-12 shrink-0 rounded-xl" size={48} variant="on-dark" />
             </div>
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-charcoalMuted">Public Status</p>
