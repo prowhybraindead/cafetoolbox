@@ -1,18 +1,13 @@
 import Link from 'next/link';
+import { BrandMark } from '@cafetoolbox/ui';
 
 export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center px-6">
       <div className="w-full max-w-md border border-borderMain rounded-xl p-8 bg-white">
         <div className="flex items-center justify-center mb-6">
-          <div className="w-12 h-12 bg-neon rounded-xl flex items-center justify-center mr-3">
-            <span
-              className="iconify text-charcoal"
-              data-icon="lucide:terminal"
-              data-width="24"
-            />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">CafeToolbox</h1>
+          <BrandMark size={48} variant="on-light" />
+          <h1 className="text-2xl font-semibold tracking-tight ml-3">CafeToolbox</h1>
         </div>
 
         <h2 className="text-xl font-semibold text-charcoal mb-2 tracking-tight text-center">

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { login } from '@cafetoolbox/supabase/auth';
+import { BrandMark } from '@cafetoolbox/ui';
 import type { LoginResult } from '@cafetoolbox/supabase/auth';
 
 export default function LoginPage() {
@@ -36,14 +37,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
-          <div className="w-12 h-12 bg-neon rounded-xl flex items-center justify-center mr-3">
-            <span
-              className="iconify text-charcoal"
-              data-icon="lucide:terminal"
-              data-width="24"
-            ></span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <BrandMark size={48} variant="on-light" />
+          <h1 className="text-2xl font-semibold tracking-tight ml-3">
             CafeToolbox
           </h1>
         </div>
