@@ -64,3 +64,23 @@ body {
 .pulse-neon {
   animation: pulse-neon 2s ease-in-out infinite;
 }
+
+/* ===== Stack Tag Hover (DESIGN.md 5.6) ===== */
+.stack-tag { transition: all 0.2s; }
+.stack-tag:hover { background: #39FF14; color: #1A1A1A; border-color: #39FF14; }
+
+/* ===== Neon Button Slide Animation (DESIGN.md 5.4) ===== */
+.neon-btn { position: relative; overflow: hidden; transition: all 0.3s; }
+.neon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: #39FF14;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+  z-index: 0;
+}
+.neon-btn:hover::before { transform: scaleX(1); }
+.neon-btn span { position: relative; z-index: 1; }
+.neon-btn:hover { color: #1A1A1A; border-color: #39FF14; }

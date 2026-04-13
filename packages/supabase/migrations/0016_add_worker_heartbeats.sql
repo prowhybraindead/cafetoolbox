@@ -31,7 +31,7 @@ CREATE TRIGGER update_worker_heartbeats_updated_at
 ALTER TABLE public.worker_heartbeats ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS worker_heartbeats_superadmin_all ON public.worker_heartbeats;
-CREATE POLICY worker_heartbeats_superadmin_all
+CREATE POLICY worker_heartbeats_superadmin_all 
   ON public.worker_heartbeats
   FOR ALL
   TO authenticated

@@ -17,22 +17,23 @@
     "@cafetoolbox/shared": "workspace:*",
     "@cafetoolbox/supabase": "workspace:*",
     "@cafetoolbox/ui": "workspace:*",
-    "next": "^16.2.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "@radix-ui/react-dialog": "^1.1.6",
     "@radix-ui/react-dropdown-menu": "^2.1.6",
     "clsx": "^2.1.1",
+    "jose": "^6.2.2",
+    "next": "^16.2.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "tailwind-merge": "^3.2.0"
   },
   "devDependencies": {
     "@cafetoolbox/eslint-config": "workspace:*",
     "@cafetoolbox/prettier-config": "workspace:*",
     "@cafetoolbox/tsconfig": "workspace:*",
+    "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "@tailwindcss/postcss": "^4.1.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.8.0"
   }
