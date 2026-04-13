@@ -1,4 +1,4 @@
-import { logger } from "./logger.mjs";
+import { logger } from "./logger.js";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -15,7 +15,7 @@ async function attemptCheck(config) {
       method,
       signal: controller.signal,
       headers: {
-        "User-Agent": "CafeToolbox-Monitoring/1.0",
+        "User-Agent": "CafeToolbox-Monitoring/2.0",
       },
     });
 
@@ -47,7 +47,7 @@ async function attemptCheck(config) {
 }
 
 export async function runHealthCheck(config, retryConfig) {
-  const maxRetries = retryConfig.maxRetries;
+  const maxRetries = Math.max(0, retryConfig.maxRetries ?? 0);
   const retryDelayMs = retryConfig.retryDelayMs;
   let attempts = 0;
 

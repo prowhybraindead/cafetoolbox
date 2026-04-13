@@ -1,65 +1,82 @@
 # Monitoring Backend (`apps/monitoring`)
 
-This folder contains the standalone monitoring backend runtime for VPS deployments.
+Standalone monitoring runtime for CafeToolbox. It runs the health-check worker, incident logic, watchdog, and daily aggregation against Supabase.
 
-## Node.js
+## Requirements
 
-- Required: Node.js 24+
-- No extra npm dependencies are required.
+- Node.js 18+ (tested with Node.js 24)
+- Supabase service role credentials
+- `.env.local` in the deployment root or environment variables in the panel
 
-## Setup
-
-1. Copy `.env.example` to `.env`.
-2. Fill in required values:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - Optional hardening knobs:
-     - `INCIDENT_COOLDOWN_SECONDS` (default 180)
-3. Start worker:
+## Quick Start
 
 ```bash
-node worker.mjs
+cp .env.example .env.local
+npm install
+node main.js
 ```
+
+## Pterodactyl Deployment
+
+If the panel lets you customize startup, use:
+
+```bash
+cd /home/container && npm install --omit=dev && exec node main.js
+```
+
+If startup is locked, set `MAIN_FILE=index.js` and upload the full `apps/monitoring` folder. The root `index.js` wrapper is the safest entrypoint for the locked `ts-node --esm` branch.
+
+## Environment Variables
+
+Required:
+
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+
+Common optional values:
+
+- `MONITORING_INTERVAL_SECONDS`
+- `MONITORING_MAX_CONCURRENCY`
+- `MONITORING_WORKER_NAME`
+- `MONITORING_REQUEST_TIMEOUT_MS`
+- `MONITORING_MAX_RETRIES`
+- `MONITORING_RETRY_DELAY_MS`
+- `INCIDENT_FAILURE_THRESHOLD`
+- `INCIDENT_IDENTIFIED_THRESHOLD`
+- `INCIDENT_MAJOR_THRESHOLD`
+- `INCIDENT_RECOVERY_THRESHOLD`
+- `INCIDENT_COOLDOWN_SECONDS`
+- `HEARTBEAT_LOOKBACK_LIMIT`
+- `AGGREGATION_BATCH_SIZE`
+- `WATCHDOG_THRESHOLD_SECONDS`
+- `WATCHDOG_CHECK_INTERVAL_SECONDS`
+- `LOG_LEVEL`
+- `LOG_PRETTY`
+- `DISCORD_WEBHOOK_URL`
+- `ALERT_WEBHOOK_URL`
 
 ## Commands
 
 ```bash
-node worker.mjs --once
-node aggregate-uptime-daily.mjs
-node aggregate-uptime-daily.mjs --date=2026-04-11
+node main.js
+node worker.js
+node worker.js --once
+node watchdog.js
+node watchdog.js --once
+node aggregate-uptime-daily.js
+node aggregate-uptime-daily.js --date=2026-04-11
 ```
 
-## systemd example
+## What This Folder Contains
 
-```ini
-[Unit]
-Description=CafeToolbox Monitoring Worker
-After=network.target
+- `main.js` starts the worker and watchdog together
+- `worker.js` runs the health-check loop
+- `watchdog.js` checks worker heartbeat health
+- `aggregate-uptime-daily.js` computes daily uptime rows
+- `monitor/` contains the core implementation
 
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/opt/cafetoolbox/apps/monitoring
-ExecStart=/usr/bin/node worker.mjs
-Restart=always
-RestartSec=5
-Environment=NODE_ENV=production
+## Troubleshooting
 
-[Install]
-WantedBy=multi-user.target
-```
-
-Then run:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable cafetoolbox-monitoring
-sudo systemctl start cafetoolbox-monitoring
-sudo systemctl status cafetoolbox-monitoring
-```
-
-## Daily aggregation via cron
-
-```cron
-5 0 * * * cd /opt/cafetoolbox/apps/monitoring && /usr/bin/node aggregate-uptime-daily.mjs >> /var/log/cafetoolbox-aggregate.log 2>&1
-```
+- Exit code 128 usually means the provider startup wrapper is still forcing the wrong launch path.
+- If Supabase tables are missing, the worker and watchdog now fail softly where possible.
+- If `.env.local` is not present, set the same values directly in the panel variables.

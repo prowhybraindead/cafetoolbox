@@ -1,4 +1,4 @@
-import { logger } from "./logger.mjs";
+import { logger } from "./logger.js";
 
 function truncate(text, max) {
   if (!text) return null;
@@ -43,7 +43,7 @@ export class IncidentNotifier {
         postJson(this.genericWebhookUrl, {
           event_type: eventType,
           occurred_at: new Date().toISOString(),
-          ...context,
+          context,
         }).catch((error) => {
           logger.error("Generic webhook notification failed", { error: error.message, eventType });
         })
@@ -60,29 +60,39 @@ export class IncidentNotifier {
       incident_created: "Incident Created",
       incident_updated: "Incident Updated",
       incident_resolved: "Incident Resolved",
+      worker_down: "Monitoring Worker DOWN",
     };
 
     const colorMap = {
       incident_created: 0xff9800,
       incident_updated: 0xffc107,
       incident_resolved: 0x4caf50,
+      worker_down: 0xf44336,
     };
 
-    return {
-      embeds: [
-        {
-          title: titleMap[eventType] || "Monitoring Event",
-          color: colorMap[eventType] || 0x607d8b,
-          description: truncate(context.message || "No description provided", 400),
-          fields: [
+    const fields =
+      eventType === "worker_down"
+        ? [
+            {
+              name: "Last Seen At",
+              value: context.last_seen_at || "unknown",
+              inline: true,
+            },
+            {
+              name: "Delay (seconds)",
+              value: context.delay_seconds != null ? String(context.delay_seconds) : "unknown",
+              inline: true,
+            },
+          ]
+        : [
             {
               name: "Service",
-              value: context.service?.name || context.service?.id || "unknown",
+              value: String(context.service?.name || context.service?.id || "unknown"),
               inline: true,
             },
             {
               name: "Incident Status",
-              value: context.incident?.status || "n/a",
+              value: String(context.incident?.status || "n/a"),
               inline: true,
             },
             {
@@ -90,7 +100,15 @@ export class IncidentNotifier {
               value: String(context.failureStreak ?? 0),
               inline: true,
             },
-          ],
+          ];
+
+    return {
+      embeds: [
+        {
+          title: titleMap[eventType] || "Monitoring Event",
+          color: colorMap[eventType] || 0x607d8b,
+          description: truncate(context.message || "No description provided", 400),
+          fields,
           timestamp: new Date().toISOString(),
         },
       ],

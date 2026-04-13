@@ -1,9 +1,11 @@
-import { loadMonitoringConfig } from "./config.mjs";
-import { runHealthCheck } from "./health-checker.mjs";
-import { SupabaseRestClient } from "./supabase-rest.mjs";
-import { IncidentNotifier } from "./notifier.mjs";
-import { IncidentEngine } from "./incident-engine.mjs";
-import { logger } from "./logger.mjs";
+import { loadMonitoringConfig } from "./config.js";
+import { runHealthCheck } from "./health-checker.js";
+import { SupabaseRestClient } from "./supabase-rest.js";
+import { IncidentNotifier } from "./notifier.js";
+import { IncidentEngine } from "./incident-engine.js";
+import { createLogger } from "./logger.js";
+
+const logger = createLogger("worker");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,7 +29,7 @@ function normalizeConfigRow(row, fallbackTimeoutMs) {
   return {
     serviceId: row.service_id,
     url: row.health_check_url,
-    method: row.method || "GET",
+    method: (row.method || "GET").toUpperCase(),
     expectedStatusCode:
       typeof row.expected_status_code === "number" ? row.expected_status_code : null,
     timeoutMs: typeof row.timeout_ms === "number" ? row.timeout_ms : fallbackTimeoutMs,
@@ -46,6 +48,7 @@ function isDue(lastCheckedAt, nowMs, intervalSeconds, globalIntervalSeconds) {
 
 export async function runMonitoringWorker({ once = false } = {}) {
   const config = loadMonitoringConfig();
+  const workerName = process.env.MONITORING_WORKER_NAME || "monitoring-worker";
   const db = new SupabaseRestClient({
     supabaseUrl: config.supabaseUrl,
     serviceRoleKey: config.serviceRoleKey,
@@ -68,6 +71,8 @@ export async function runMonitoringWorker({ once = false } = {}) {
 
   const lastCheckedMap = new Map();
   let keepRunning = true;
+  const HEARTBEAT_INTERVAL_MS = 60_000;
+  let lastHeartbeatAt = 0;
 
   const stopHandler = () => {
     logger.warn("Received shutdown signal, stopping worker loop gracefully");
@@ -78,6 +83,7 @@ export async function runMonitoringWorker({ once = false } = {}) {
   process.once("SIGTERM", stopHandler);
 
   logger.info("Monitoring worker started", {
+    workerName,
     intervalSeconds: config.workerIntervalSeconds,
     maxConcurrency: config.maxConcurrency,
     timeoutMs: config.requestTimeoutMs,
@@ -86,6 +92,16 @@ export async function runMonitoringWorker({ once = false } = {}) {
 
   while (keepRunning) {
     const cycleStartedAt = Date.now();
+
+    // Self-heartbeat: throttled to at most once per 60 s (fire-and-forget).
+    if (cycleStartedAt - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
+      lastHeartbeatAt = cycleStartedAt;
+      db.upsertWorkerHeartbeat(workerName, new Date(cycleStartedAt).toISOString()).catch((err) => {
+        logger.warn("Worker heartbeat write failed (non-critical)", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }
 
     try {
       const rawConfigs = await db.getEnabledServiceConfigs();
@@ -159,7 +175,7 @@ export async function runMonitoringWorker({ once = false } = {}) {
             okCount += 1;
           } else {
             failedCount += 1;
-            logger.warn("Health check failed", {
+            logger.warn("Health check not healthy", {
               serviceId: serviceConfig.serviceId,
               error: health.errorMessage,
               httpStatus: health.httpStatus,

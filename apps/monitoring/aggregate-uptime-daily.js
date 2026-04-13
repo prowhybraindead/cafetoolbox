@@ -1,23 +1,14 @@
 #!/usr/bin/env node
-
-/**
- * Daily uptime aggregation entrypoint.
- *
- * Usage:
- *   node aggregate-uptime-daily.mjs
- *   node aggregate-uptime-daily.mjs --date=2026-04-11
- */
-
-import { loadMonitoringConfig } from "./monitoring/config.mjs";
-import { SupabaseRestClient } from "./monitoring/supabase-rest.mjs";
-import { runDailyAggregation } from "./monitoring/aggregation-job.mjs";
+import { loadMonitoringConfig } from "./monitor/config.js";
+import { SupabaseRestClient } from "./monitor/supabase-rest.js";
+import { runDailyAggregation } from "./monitor/aggregation-job.js";
 
 function parseDateArg(args) {
   const raw = args.find((arg) => arg.startsWith("--date="));
   if (!raw) return null;
 
   const value = raw.slice("--date=".length);
-  const parsed = new Date(`${value}T00:00:00.000Z`);
+  const parsed = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) {
     throw new Error(`Invalid --date value: ${value}`);
   }
@@ -37,6 +28,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("[monitoring] daily aggregation failed", error);
+  console.error("[monitoring] aggregation fatal", error);
   process.exit(1);
 });

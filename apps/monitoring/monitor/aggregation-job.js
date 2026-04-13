@@ -1,4 +1,4 @@
-import { logger } from "./logger.mjs";
+import { logger } from "./logger.js";
 
 function utcDateOnly(date) {
   return date.toISOString().slice(0, 10);
@@ -11,7 +11,6 @@ function startOfUtcDay(date) {
 function computeDailyMetrics(heartbeats) {
   const totalChecks = heartbeats.length;
 
-  // No heartbeat data means unknown availability, not 0% uptime.
   if (totalChecks === 0) {
     return {
       uptimePercentage: null,
@@ -60,7 +59,6 @@ export async function runDailyAggregation({ db, runDate }) {
       const heartbeats = await db.getHeartbeatsForWindow(service.id, start.toISOString(), end.toISOString());
       const metrics = computeDailyMetrics(heartbeats);
 
-      // Upsert on (service_uuid, date) keeps reruns deterministic and idempotent.
       await db.upsertDailyAggregate({
         service_uuid: service.id,
         date: reportDate,
