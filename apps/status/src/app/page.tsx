@@ -3,6 +3,8 @@ import { createServerClient } from "@cafetoolbox/supabase";
 import { BrandMark } from "@cafetoolbox/ui";
 import { TimezoneClocks } from "../components/timezone-clocks";
 import { UptimeChart } from "../components/uptime-chart";
+import { AutoRefresh } from "../components/auto-refresh";
+import { LastRefresh } from "../components/last-refresh";
 
 type ServiceRow = {
   id: string;
@@ -427,7 +429,7 @@ export default async function StatusPage() {
                 1. Monitoring worker kiểm tra health mỗi 30s, ghi kết quả vào bảng <span className="text-neon">service_heartbeats</span>.
               </p>
               <p>
-                2. Dữ liệu được tổng hợp hàng ngày vào bảng <span className="text-neon">service_uptime_daily</span> để hiển thị biểu đồ 7d/30d.
+                2. Biểu đồ 1d được chia theo giờ từ heartbeat logs; biểu đồ 7d/30d dùng dữ liệu tổng hợp hàng ngày từ bảng <span className="text-neon">service_uptime_daily</span>.
               </p>
               <p>
                 3. Status page đọc trực tiếp dữ liệu công khai, nên ai cũng xem được mà không cần đăng nhập.
@@ -452,9 +454,12 @@ export default async function StatusPage() {
         </section>
 
         <footer className="mt-12 border-t border-borderLight pt-6 text-sm text-charcoalMuted">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p>Public status page for CafeToolbox.</p>
-            <p>Thời gian trên trang hiển thị theo UTC · Last refresh: {formatDateTime(new Date().toISOString())}</p>
+            <div className="flex items-center gap-4">
+              <AutoRefresh />
+              <LastRefresh />
+            </div>
           </div>
         </footer>
       </div>

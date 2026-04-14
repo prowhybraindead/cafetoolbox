@@ -29,12 +29,23 @@ function getUptimeColor(uptime: number | null): string {
 }
 
 function getUptimeTooltip(uptime: number | null, date: string): string {
-  const formatted = new Date(date + "T00:00:00Z").toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  const isHourlyPoint = date.includes("T");
+  const parsed = isHourlyPoint ? new Date(date) : new Date(date + "T00:00:00Z");
+  const formatted = isHourlyPoint
+    ? parsed.toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      })
+    : parsed.toLocaleDateString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC",
+      });
 
   if (uptime === null) return `${formatted}: Không có dữ liệu`;
   return `${formatted}: ${uptime.toFixed(2)}% uptime`;
@@ -46,8 +57,8 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isRefresh = false) => {
+    if (!isRefresh) setLoading(true);
     setError(null);
     try {
       const { days } = RANGE_CONFIG[range];
@@ -56,7 +67,6 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
       );
       if (!response.ok) {
         if (response.status === 500) {
-          // Likely migration not run yet — table doesn't exist
           setData([]);
           return;
         }
@@ -71,8 +81,11 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
     }
   }, [serviceId, range]);
 
+  // Initial fetch + auto-refresh every 60s
   useEffect(() => {
     fetchData();
+    const interval = setInterval(() => fetchData(true), 60_000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   // Calculate summary
@@ -81,6 +94,20 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
     validData.length > 0
       ? validData.reduce((sum, d) => sum + (d.uptime ?? 0), 0) / validData.length
       : null;
+
+  const formatRangeEdge = (value?: string) => {
+    if (!value) return "";
+    if (value.includes("T")) {
+      return new Date(value).toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        timeZone: "UTC",
+      });
+    }
+    return value;
+  };
 
   return (
     <div className="rounded-2xl border border-borderLight p-5">
@@ -153,8 +180,8 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
       {/* Date range label */}
       {!loading && data.length > 0 && (
         <div className="mt-2 flex justify-between text-xs text-charcoalMuted">
-          <span>{data[0]?.date}</span>
-          <span>{data[data.length - 1]?.date}</span>
+          <span>{formatRangeEdge(data[0]?.date)}</span>
+          <span>{formatRangeEdge(data[data.length - 1]?.date)}</span>
         </div>
       )}
     </div>
