@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle, Clock3, Github, Signal } from "lucide-react
 import { createServerClient } from "@cafetoolbox/supabase";
 import { BrandMark } from "@cafetoolbox/ui";
 import { TimezoneClocks } from "../components/timezone-clocks";
+import { UptimeChart } from "../components/uptime-chart";
 
 type ServiceRow = {
   id: string;
@@ -274,7 +275,9 @@ export default async function StatusPage() {
               </div>
               <div>
                 <p className="text-sm text-charcoalMuted">Dịch vụ hoạt động</p>
-                <p className="mt-2 text-4xl font-semibold tracking-tight">{operationalServices}/{servicesWithHealth.length || 0}</p>
+                <p className="mt-2 text-4xl font-semibold tracking-tight">
+                  {operationalServices}/{servicesWithHealth.length || 0}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-charcoalMuted">Sự cố đang mở</p>
@@ -283,8 +286,8 @@ export default async function StatusPage() {
             </div>
 
             <p className="mt-6 max-w-2xl text-sm leading-6 text-charcoalMuted">
-              Trang này đọc trực tiếp dữ liệu công khai từ <span className="font-medium text-charcoal">services</span> và <span className="font-medium text-charcoal">service_heartbeats</span> (monitoring thực tế).
-              Uptime được tính từ các lần kiểm tra health check trong 24 giờ qua. Incidents lịch sử của các sự cố được ghi nhận.
+              Trang này đọc trực tiếp dữ liệu công khai từ <span className="font-medium text-charcoal">services</span>, <span className="font-medium text-charcoal">service_heartbeats</span> và <span className="font-medium text-charcoal">service_uptime_daily</span>.
+              Uptime được tính từ health check thực tế. Xem lịch sử 1 ngày / 7 ngày / 30 ngày bên dưới.
             </p>
           </div>
 
@@ -308,9 +311,9 @@ export default async function StatusPage() {
         <section className="mt-10 rounded-3xl border border-borderMain bg-white p-8">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Uptime theo từng phần (24h)</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Lịch sử Uptime</h2>
               <p className="mt-2 text-sm text-charcoalMuted">
-                Uptime được tính từ các lần health check qua heartbeat logs. Mỗi check được ghi lại và tính % uptime thực tế.
+                Uptime được tính từ health check thực tế qua heartbeat logs. Xem theo 24h, 7 ngày hoặc 30 ngày.
               </p>
             </div>
             <div className="rounded-full border border-borderLight bg-charcoal/5 px-3 py-1 text-sm text-charcoalMuted">
@@ -318,51 +321,40 @@ export default async function StatusPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="mt-6 grid gap-4">
             {servicesWithHealth.map((service) => {
               const statusKey = service.is_healthy ? "operational" : "degraded";
               const copy = serviceStatusCopy[statusKey];
               const uptimeValue = Number(service.uptime_24h ?? 0);
 
               return (
-                <article key={service.id} className="rounded-2xl border border-borderLight p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">{service.name}</h3>
-                      <p className="mt-1 text-sm text-charcoalMuted">
-                        Uptime 24h: {formatPercent(uptimeValue)}{service.response_time_ms ? ` · ${service.response_time_ms}ms` : ""}
-                      </p>
-                      {service.last_checked_at ? (
-                        <p className="mt-1 text-xs text-charcoalMuted">
-                          Kiểm tra lần cuối: {formatDateTime(service.last_checked_at)}
-                        </p>
-                      ) : null}
+                <div key={service.id}>
+                  <div className="flex items-center justify-between gap-4 mb-3">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-base font-semibold">{service.name}</h3>
+                      <span className="text-sm text-charcoalMuted">
+                        24h: {formatPercent(uptimeValue)}{service.response_time_ms ? ` · ${service.response_time_ms}ms` : ""}
+                      </span>
+                      {service.last_checked_at && (
+                        <span className="hidden sm:inline text-xs text-charcoalMuted">
+                          Check: {formatDateTime(service.last_checked_at)}
+                        </span>
+                      )}
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-medium ${copy.badge}`}>
+                    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${copy.badge}`}>
                       {copy.label}
                     </span>
                   </div>
-
-                  <div className="mt-4 h-3 rounded-full bg-charcoal/10">
-                    <div
-                      className={`h-3 rounded-full ${copy.bar}`}
-                      style={{ width: `${Math.min(Math.max(uptimeValue, 0), 100)}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between text-sm">
-                    <span className="text-charcoalMuted">Trạng thái</span>
-                    <span className={copy.tone}>{copy.label}</span>
-                  </div>
-                </article>
+                  <UptimeChart serviceId={service.id} serviceName="" />
+                </div>
               );
             })}
 
-            {servicesWithHealth.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-borderLight p-8 text-center text-charcoalMuted lg:col-span-2">
+            {servicesWithHealth.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-borderLight p-8 text-center text-charcoalMuted">
                 Chưa có service nào được seed vào Supabase.
               </div>
-            ) : null}
+            )}
           </div>
         </section>
 
@@ -432,16 +424,16 @@ export default async function StatusPage() {
             <h2 className="text-xl font-semibold tracking-tight">Cách theo dõi uptime</h2>
             <div className="mt-5 space-y-4 text-sm text-white/75">
               <p>
-                1. Mỗi service được lưu trong bảng <span className="text-neon">services</span> với trạng thái và uptime riêng.
+                1. Monitoring worker kiểm tra health mỗi 30s, ghi kết quả vào bảng <span className="text-neon">service_heartbeats</span>.
               </p>
               <p>
-                2. Các sự cố được lưu trong bảng <span className="text-neon">incidents</span> và được nối với phần cập nhật trong <span className="text-neon">incident_updates</span>.
+                2. Dữ liệu được tổng hợp hàng ngày vào bảng <span className="text-neon">service_uptime_daily</span> để hiển thị biểu đồ 7d/30d.
               </p>
               <p>
                 3. Status page đọc trực tiếp dữ liệu công khai, nên ai cũng xem được mà không cần đăng nhập.
               </p>
               <p>
-                4. Nếu muốn uptime lịch sử theo ngày/giờ, bước tiếp theo là thêm bảng heartbeat hoặc snapshot riêng để lưu từng lần kiểm tra.
+                4. Khi phát hiện sự cố, hệ thống tự động tạo incident và cập nhật trạng thái trên trang này.
               </p>
             </div>
           </aside>

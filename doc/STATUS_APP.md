@@ -82,8 +82,9 @@ All changes are logged in the platform `CHANGELOG.md` with scoped format to main
 ### 3. Per-Service Health Monitoring
 - Real-time health status retrieved via RPC `get_service_health_status` for each service
 - Graceful degradation to `services.uptime` and `services.status` on RPC failure
-- Service health cards display: name, 24h uptime percentage, response time (ms), last check timestamp, status-coded progress bar
-- Responsive 2-column grid layout on desktop viewports
+- Service cards display: name, 24h uptime percentage, response time (ms), last check timestamp, status badge
+- **Uptime history charts** with switchable 1d / 7d / 30d time ranges (client-side)
+- Daily uptime data sourced from `service_uptime_daily` via `/api/uptime-history` route
 
 ### 4. Incident Communication
 - Retrieves most recent **6 incidents**, ordered by `started_at` descending
@@ -261,6 +262,7 @@ To prevent performance degradation:
 ### Evolution Path (Roadmap Milestones)
 
 #### Short-term (0-3 months)
+- ~~Add historical uptime charts with 1d/7d/30d ranges~~ ✅ Done — `UptimeChart` component + `/api/uptime-history` route
 - Implement **Next.js revalidate** with 60s interval for ISR
 - Add query result caching at the CDN layer
 - Implement request deduplication for concurrent requests
@@ -273,7 +275,7 @@ To prevent performance degradation:
 #### Long-term (6-12 months)
 - Evaluate **Gemini** or similar for pub/sub architecture
 - Implement **push notifications** via WebSockets or Service Workers
-- Add **historical uptime charts** with pre-aggregated time series data
+- ~~Add **historical uptime charts** with pre-aggregated time series data~~ ✅ Done — `UptimeChart` + `/api/uptime-history`
 - Consider **database read replicas** for scaling query capacity
 
 ---
@@ -346,6 +348,26 @@ The status page reflects these changes in **real-time** (on next page load).
 | `incidents` | Incident history and lifecycle | SELECT via RLS, limit 6 | Manually managed through admin |
 | `incident_updates` | Incident update timeline | SELECT via RLS, limit 18 | Chronological progression data |
 | `service_heartbeats` | Time-series health check raw data | **Read via RPC only** | Never queried directly by this app |
+| `service_uptime_daily` | Pre-aggregated daily uptime rollups | SELECT via API route `/api/uptime-history` | Requires migration 0014 + daily aggregation job |
+
+### API Routes
+
+**`GET /api/uptime-history?serviceId=<uuid>&days=<1-90>`**
+
+Returns daily uptime history for chart rendering. Reads from `service_uptime_daily` table.
+
+```typescript
+type UptimeDataPoint = {
+  date: string;        // "YYYY-MM-DD" (UTC)
+  uptime: number | null;  // Percentage (0-100), null = no data for that day
+};
+
+// Response: UptimeDataPoint[]
+```
+
+- Fills gaps in date range with `null` uptime values
+- Used by the `UptimeChart` client component
+- Gracefully returns empty array if table doesn't exist (migration not run)
 
 ### RPC Functions
 
@@ -539,7 +561,7 @@ pnpm clean        # Remove build artifacts: .next/ + node_modules/
 | Category | Limitation | Impact |
 |---|---|---|
 | Data freshness | No client-side auto-refresh | Users must manually reload for updates |
-| Historical data | Only 24-hour uptime window | Cannot assess long-term reliability trends |
+| Historical data | Uptime charts require migration 0014 + daily aggregation | Charts show "No data" until migrations run and aggregate job executes |
 | Incident depth | Only 3 updates displayed per incident | Limited visibility into incident resolution details |
 | Notifications | No subscription or alert mechanism | Users must check page proactively |
 | Error visibility | RPC failures silent to end users | May display stale data without indication |
