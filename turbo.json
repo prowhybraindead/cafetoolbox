@@ -8,10 +8,18 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": ["SUPABASE_SERVICE_ROLE_KEY", "AUTH_COOKIE_DOMAIN"]
+      "env": ["SUPABASE_SERVICE_ROLE_KEY", "AUTH_COOKIE_DOMAIN", "CONVERTUBE_API_BASE_URL"]
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": [
+        "HEALTH_CHECK_API_SECRET",
+        "CRON_SECRET",
+        "VERCEL_URL",
+        "DASHBOARD_TOOL_SHARED_SECRET",
+        "DASHBOARD_TOOL_TOKEN_TTL_SECONDS",
+        "CONVERTUBE_API_BASE_URL"
+      ]
     },
     "format": {
       "dependsOn": ["^build"]

@@ -1,4 +1,4 @@
-import { createAdminClient, createServerClient } from '@cafetoolbox/supabase';
+import { createServerClient } from '@cafetoolbox/supabase';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import type { ReactNode, SVGProps } from 'react';

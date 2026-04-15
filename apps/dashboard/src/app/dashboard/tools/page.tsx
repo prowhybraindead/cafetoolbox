@@ -89,7 +89,7 @@ export default async function ToolsPage() {
                     Kích thước: {sizeLabels[tool.size] || tool.size}
                   </span>
                   <Link
-                    href={tool.path}
+                    href={`/api/tools/launch?toolId=${encodeURIComponent(tool.id)}`}
                     className={`text-sm font-medium ${
                       tool.status === 'active' || tool.status === 'beta'
                         ? 'text-charcoal hover:text-neon'

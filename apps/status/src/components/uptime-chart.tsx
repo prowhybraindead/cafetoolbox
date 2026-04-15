@@ -52,7 +52,7 @@ function getUptimeTooltip(uptime: number | null, date: string): string {
 }
 
 export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
-  const [range, setRange] = useState<RangeKey>("7d");
+  const [range, setRange] = useState<RangeKey>("1d");
   const [data, setData] = useState<UptimeDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

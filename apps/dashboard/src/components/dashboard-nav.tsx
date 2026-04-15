@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState, useRef, useEffect, type ReactNode, type SVGProps } from 'react';
 import { BrandMark } from '@cafetoolbox/ui';
 
@@ -18,15 +19,6 @@ function IconShell({ children, className }: { children: ReactNode; className?: s
     >
       {children}
     </svg>
-  );
-}
-
-function TerminalIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <IconShell {...props}>
-      <path d="m5 6 7 6-7 6" />
-      <path d="M12 18h7" />
-    </IconShell>
   );
 }
 
@@ -207,7 +199,7 @@ export function DashboardNav({ initialUser }: { initialUser?: UserInfo | null })
               >
                 <div className="w-8 h-8 bg-charcoal rounded-full flex items-center justify-center shrink-0 overflow-hidden">
                   {info?.avatar_url ? (
-                    <img src={info.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                    <Image src={info.avatar_url} alt="" width={32} height={32} unoptimized className="w-8 h-8 rounded-full object-cover" />
                   ) : (
                     <span className="text-neon text-sm font-semibold">{initials}</span>
                   )}
@@ -226,7 +218,7 @@ export function DashboardNav({ initialUser }: { initialUser?: UserInfo | null })
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-charcoal rounded-full flex items-center justify-center shrink-0 overflow-hidden">
                         {info?.avatar_url ? (
-                          <img src={info.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                          <Image src={info.avatar_url} alt="" width={40} height={40} unoptimized className="w-10 h-10 rounded-full object-cover" />
                         ) : (
                           <span className="text-neon text-sm font-semibold">{initials}</span>
                         )}

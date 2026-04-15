@@ -28,9 +28,10 @@ export async function GET() {
       },
       rawRole: rawRole ?? 'unknown',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Có lỗi xảy ra';
     return NextResponse.json(
-      { error: error.message || 'Có lỗi xảy ra' },
+      { error: message },
       { status: 500 }
     );
   }
@@ -68,8 +69,9 @@ export async function PUT(request: Request) {
           fallbackDisplayName,
         },
       );
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message || 'Dữ liệu avatar không hợp lệ' }, { status: 400 });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Dữ liệu avatar không hợp lệ';
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
     const { error: updateError } = await supabase.auth.updateUser({
@@ -98,9 +100,10 @@ export async function PUT(request: Request) {
       },
       rawRole: rawRole ?? 'unknown',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Có lỗi xảy ra';
     return NextResponse.json(
-      { error: error.message || 'Có lỗi xảy ra' },
+      { error: message },
       { status: 500 }
     );
   }

@@ -14,10 +14,12 @@
     "monitoring:once": "node apps/monitoring/worker.js --once",
     "monitoring:aggregate-daily": "node apps/monitoring/aggregate-uptime-daily.js",
     "monitoring:watchdog": "node apps/monitoring/watchdog.js",
-    "monitoring:watchdog:once": "node apps/monitoring/watchdog.js --once"
+    "monitoring:watchdog:once": "node apps/monitoring/watchdog.js --once",
+    "convertube:dev": "python apps/serveroutside/convertube/app.py"
   },
   "devDependencies": {
     "dotenv": "^17.4.1",
+    "eslint": "^9.39.4",
     "prettier": "^3.5.0",
     "turbo": "^2.5.0"
   },

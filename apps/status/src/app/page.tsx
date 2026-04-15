@@ -172,7 +172,7 @@ export default async function StatusPage() {
       const { data: healthData, error: healthError } = await supabase
         .rpc("get_service_health_status", {
           service_uuid: service.id,
-        } as any)
+        })
         .single();
 
       if (healthError) {

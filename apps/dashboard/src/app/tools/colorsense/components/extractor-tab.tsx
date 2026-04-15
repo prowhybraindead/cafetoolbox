@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ColorSwatch } from './color-swatch';
+import React, { useState, useRef, useCallback } from 'react';
+import NextImage from 'next/image';
 
 interface ExtractedColor {
   color: string;
@@ -299,9 +299,12 @@ export function ExtractorTab({ onCopy }: { onCopy: (text: string) => void }) {
                 className="w-full h-auto cursor-crosshair hidden"
               />
               {image && (
-                <img
+                <NextImage
                   src={image}
                   alt="Uploaded"
+                  width={1200}
+                  height={800}
+                  unoptimized
                   onClick={handleImageClick}
                   onMouseMove={handleImageHover}
                   onMouseLeave={() => setHoverColor(null)}

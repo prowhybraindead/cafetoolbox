@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 type Profile = {
   id: string;
@@ -499,7 +500,7 @@ export default function AdminUsersPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 bg-charcoal rounded-full flex items-center justify-center shrink-0">
                         {profile.avatar_url ? (
-                          <img src={profile.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+                          <Image src={profile.avatar_url} alt="" width={36} height={36} unoptimized className="w-9 h-9 rounded-full object-cover" />
                         ) : (
                           <span className="text-neon text-sm font-medium">
                             {(profile.display_name || profile.email).charAt(0).toUpperCase()}

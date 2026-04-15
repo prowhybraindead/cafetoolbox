@@ -25,55 +25,30 @@ AUTH_COOKIE_DOMAIN=.cafetoolbox.app
 
 ## Running Migrations
 
-### Unified Path (Canonical)
+### Current Repository Migration Set
 
-Use the consolidated migration and runbook instead of piecemeal SQL execution:
+The current repository tracks monitoring-focused incremental migrations:
 
-1. Review runbook:
-   - `packages/supabase/UNIFIED_MIGRATION_RUNBOOK.md`
+```bash
+1. /packages/supabase/migrations/0014_add_service_uptime_daily.sql
+2. /packages/supabase/migrations/0015_monitoring_correctness_hardening.sql
+3. /packages/supabase/migrations/0016_add_worker_heartbeats.sql
+4. /packages/supabase/migrations/0017_seed_convertube_service.sql
+5. /packages/supabase/migrations/0018_fix_convertube_tool_path.sql
+```
+
+Recommended flow:
+
+1. Open `packages/supabase/UNIFIED_MIGRATION_RUNBOOK.md` for full verification checklist.
 2. Run preflight gate command:
    - `node scripts/supabase-phase1-preflight.mjs`
-3. Apply migration:
-   - `packages/supabase/migrations/0011_rebuild_schema_and_rls_unified.sql`
-4. Execute all post-apply verification queries from the runbook.
+3. Apply the migration files above in SQL Editor (in order).
+4. Execute post-apply verification queries from the runbook.
 
-Why this path:
+Note:
 
-- Prevents policy drift and recursive-RLS regressions.
-- Preserves data during rebuild using in-transaction compatibility snapshot/restore.
-- Keeps one source of truth for schema + RLS aligned with current API architecture.
-
-### Legacy Sequence (Reference Only)
-
-This sequence is kept for historical reference only. Prefer the unified path above.
-
-1. **Open SQL Editor**
-   - Go to your Supabase Dashboard
-   - Left menu: `Database` → `SQL Editor`
-
-2. **Upload and Run Migrations**
-
-   You need to run these files in order:
-
-   ```bash
-   1. /packages/supabase/migrations/0001_initial_schema.sql
-   2. /packages/supabase/migrations/0002_rls_policies.sql
-   3. /packages/supabase/migrations/0003_seed_data.sql
-   4. /packages/supabase/migrations/0004_fix_profile_schema.sql
-   5. /packages/supabase/migrations/0005_update_rls_for_superadmin.sql
-   6. /packages/supabase/migrations/0006_update_trigger_default_role.sql
-   ```
-
-   Click "New Query" for each file, paste the SQL content, and click "Run".
-
-3. **Verify Tables Created**
-   - Go to `Database` → `Table Editor`
-   - You should see: `profiles`, `tools`, `services`, `incidents`, `incident_updates`
-
-4. **Verify RLS Enabled**
-   - Go to `Database` → `Tables` → Select a table
-   - Click "Authentication" icon (shield icon)
-   - Should show "Row Level Security: ON"
+- Baseline schema and RLS must already exist in your Supabase project before applying `0014+`.
+- This repository does not currently include the historical baseline SQL files.
 
 ### Optional: Supabase CLI (Advanced)
 
@@ -198,10 +173,12 @@ If you need to reset everything:
 DROP SCHEMA public CASCADE;
 CREATE SCHEMA public;
 
--- Re-run all migrations
--- (Paste contents of 0001_initial_schema.sql)
--- (Paste contents of 0002_rls_policies.sql)
--- (Paste contents of 0003_seed_data.sql)
+-- Re-run available migrations from this repository
+-- (Paste contents of 0014_add_service_uptime_daily.sql)
+-- (Paste contents of 0015_monitoring_correctness_hardening.sql)
+-- (Paste contents of 0016_add_worker_heartbeats.sql)
+-- (Paste contents of 0017_seed_convertube_service.sql)
+-- (Paste contents of 0018_fix_convertube_tool_path.sql)
 ```
 
 Warning: This will delete all data including users.
@@ -256,5 +233,5 @@ Should return 1 row.
 - Triggers auto-update `updated_at` on all tables
 - Profile auto-created with default role `user`
 - Superadmin role can be granted via UPDATE query on `profiles` table
-- Canonical migration baseline is `0011_rebuild_schema_and_rls_unified.sql`
+- This repository currently tracks incremental migrations `0014` to `0018`
 - Seed data is for development only - production should use admin dashboard

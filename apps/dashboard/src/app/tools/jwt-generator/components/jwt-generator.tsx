@@ -4,7 +4,6 @@ import React, { useState, useCallback } from 'react';
 import { SignJWT } from 'jose';
 import {
   DEFAULT_PAYLOAD,
-  DEFAULT_HEADER,
   copyToClipboard,
   parseJWT,
   validateJWT,

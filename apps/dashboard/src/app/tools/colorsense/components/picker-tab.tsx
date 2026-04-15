@@ -16,11 +16,6 @@ import {
 } from '../lib/color-utils';
 import { ColorSwatch } from './color-swatch';
 
-interface ToastData {
-  message: string;
-  visible: boolean;
-}
-
 const PRESET_PALETTES = [
   { name: 'Neon', colors: ['#39FF14', '#FF1464', '#14D4FF', '#FFB814', '#8B14FF', '#FF6414'] },
   { name: 'Pastel', colors: ['#FFB3BA', '#FFDFBA', '#FFFFBA', '#BAFFC9', '#BAE1FF', '#E8BAFF'] },

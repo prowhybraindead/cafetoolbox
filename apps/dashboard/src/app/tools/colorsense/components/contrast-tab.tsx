@@ -4,10 +4,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { HexColorPicker } from 'react-colorful';
 import {
   hexToRgb,
-  rgbToHex,
   contrastRatio,
   getContrastLevel,
-  textColorForBg,
   formatRatio,
   type RGB,
 } from '../lib/color-utils';
@@ -18,7 +16,7 @@ const SAMPLE_TEXTS = [
   { label: 'Secondary', text: 'Lorem ipsum dolor sit amet', className: 'text-sm text-opacity-80' },
 ];
 
-export function ContrastCheckerTab({ onCopy }: { onCopy: (text: string) => void }) {
+export function ContrastCheckerTab({ onCopy: _onCopy }: { onCopy: (text: string) => void }) {
   const [bgColor, setBgColor] = useState('#FFFFFF');
   const [textColor, setTextColor] = useState('#1A1A1A');
   const [showBgPicker, setShowBgPicker] = useState(false);

@@ -84,8 +84,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ userI
           fallbackDisplayName: authUser.user_metadata?.display_name ?? authUser.email?.split('@')[0] ?? 'User',
         },
       );
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message || 'Dữ liệu avatar không hợp lệ' }, { status: 400 });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Dữ liệu avatar không hợp lệ';
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
     const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type Profile = {
   id: string;
@@ -195,7 +196,7 @@ export default function SettingsPage() {
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-charcoal flex items-center justify-center overflow-hidden shrink-0">
               {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                <Image src={profile.avatar_url} alt="Avatar" width={64} height={64} unoptimized className="w-full h-full object-cover" />
               ) : (
                 <span className="text-neon text-xl font-semibold">{initials}</span>
               )}

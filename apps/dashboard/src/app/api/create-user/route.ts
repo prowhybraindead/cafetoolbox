@@ -97,10 +97,11 @@ export async function POST(request: Request) {
       },
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Có lỗi xảy ra';
     console.error('Error in create-user API:', error);
     return NextResponse.json(
-      { error: error.message || 'Có lỗi xảy ra' },
+      { error: message },
       { status: 500 }
     );
   }
