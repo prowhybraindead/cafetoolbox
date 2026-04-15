@@ -27,6 +27,7 @@ next-env.d.ts
 AI.md
 RULES.md
 DESIGN.md
+DESIGN_N1.md
 
 # Obsolete folders (to be manually deleted)
 tooling/

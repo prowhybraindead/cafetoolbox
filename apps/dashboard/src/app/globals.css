@@ -1,2 +1,109 @@
 /* Import global CSS from @cafetoolbox/ui */
 @import "@cafetoolbox/ui/globals.css";
+
+@keyframes themeStarTwinkle {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.35); }
+}
+
+@keyframes themeCloudFloat {
+  0%, 100% { transform: translateX(0); opacity: 0.7; }
+  50% { transform: translateX(-6px); opacity: 1; }
+}
+
+@keyframes themeRaysSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.theme-toggle-star {
+  animation: themeStarTwinkle 2.4s ease-in-out infinite;
+}
+
+.theme-toggle-cloud {
+  animation: themeCloudFloat 4.8s ease-in-out infinite;
+}
+
+.theme-toggle-rays {
+  transform-origin: center;
+  animation: themeRaysSpin 10s linear infinite;
+}
+
+@keyframes beachWaveDriftA {
+  from { transform: translateX(0); }
+  to { transform: translateX(-160px); }
+}
+
+@keyframes beachWaveDriftB {
+  from { transform: translateX(0); }
+  to { transform: translateX(220px); }
+}
+
+@keyframes beachWaveSwell {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-12px) scaleY(1.06); }
+}
+
+@keyframes beachWaveBreak {
+  0%, 100% { transform: translateY(0) scaleY(1); opacity: 0.72; }
+  45% { transform: translateY(-18px) scaleY(1.1); opacity: 0.95; }
+  70% { transform: translateY(-8px) scaleY(1.03); opacity: 0.82; }
+}
+
+@keyframes starDrift {
+  0%, 100% { opacity: 0.35; transform: translateY(0); }
+  50% { opacity: 0.9; transform: translateY(-3px); }
+}
+
+@keyframes shootingStarA {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-24deg) scaleX(0.2); }
+  5% { opacity: 1; }
+  19% { opacity: 0; transform: translate3d(-260px, 150px, 0) rotate(-24deg) scaleX(1); }
+  100% { opacity: 0; transform: translate3d(-260px, 150px, 0) rotate(-24deg) scaleX(1); }
+}
+
+@keyframes shootingStarB {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-14deg) scaleX(0.25); }
+  6% { opacity: 0.95; }
+  22% { opacity: 0; transform: translate3d(-210px, 95px, 0) rotate(-14deg) scaleX(1); }
+  100% { opacity: 0; transform: translate3d(-210px, 95px, 0) rotate(-14deg) scaleX(1); }
+}
+
+@keyframes shootingStarC {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(-30deg) scaleX(0.2); }
+  8% { opacity: 1; }
+  25% { opacity: 0; transform: translate3d(-300px, 180px, 0) rotate(-30deg) scaleX(1); }
+  100% { opacity: 0; transform: translate3d(-300px, 180px, 0) rotate(-30deg) scaleX(1); }
+}
+
+.landing-bg-wave-a {
+  animation: beachWaveDriftA 22s linear infinite;
+}
+
+.landing-bg-wave-b {
+  animation: beachWaveDriftB 28s linear infinite;
+}
+
+.landing-bg-wave-swell {
+  animation: beachWaveSwell 6.2s ease-in-out infinite;
+}
+
+.landing-bg-wave-break {
+  animation: beachWaveBreak 4.7s ease-in-out infinite;
+}
+
+.landing-bg-star {
+  animation: starDrift 3.4s ease-in-out infinite;
+}
+
+.landing-bg-shooting-a {
+  animation: shootingStarA 6.8s linear infinite;
+}
+
+.landing-bg-shooting-b {
+  animation: shootingStarB 8.2s linear infinite;
+}
+
+.landing-bg-shooting-c {
+  animation: shootingStarC 9.4s linear infinite;
+}

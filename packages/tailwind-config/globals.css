@@ -84,3 +84,32 @@ body {
 .neon-btn:hover::before { transform: scaleX(1); }
 .neon-btn span { position: relative; z-index: 1; }
 .neon-btn:hover { color: #1A1A1A; border-color: #39FF14; }
+
+/* ===== Theme Toggle Animations ===== */
+@keyframes theme-toggle-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.6); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes theme-toggle-float {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(3px); }
+}
+
+@keyframes theme-toggle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.theme-toggle-star {
+  animation: theme-toggle-twinkle 2s ease-in-out infinite;
+}
+
+.theme-toggle-cloud {
+  animation: theme-toggle-float 4s ease-in-out infinite;
+}
+
+.theme-toggle-rays {
+  animation: theme-toggle-spin 8s linear infinite;
+  transform-origin: 12px 12px;
+}
