@@ -1,5 +1,6 @@
 import { createServerClient } from '@cafetoolbox/supabase';
-import { DashboardNav } from '../../components/dashboard-nav';
+import { DashboardShell } from '../../components/dashboard-shell';
+import type { UserInfo } from '../../components/dashboard-nav';
 
 export default async function DashboardLayout({
   children,
@@ -9,7 +10,7 @@ export default async function DashboardLayout({
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const initialUser = user
+  const initialUser: UserInfo | null = user
     ? {
         email: user.email ?? '',
         display_name: typeof user.user_metadata?.display_name === 'string' ? user.user_metadata.display_name : null,
@@ -19,9 +20,8 @@ export default async function DashboardLayout({
     : null;
 
   return (
-    <div className="min-h-screen bg-cream">
-      <DashboardNav initialUser={initialUser} />
+    <DashboardShell initialUser={initialUser}>
       {children}
-    </div>
+    </DashboardShell>
   );
 }

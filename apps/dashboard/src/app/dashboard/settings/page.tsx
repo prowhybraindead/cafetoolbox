@@ -48,6 +48,46 @@ export default function SettingsPage() {
     password: '',
     confirmPassword: '',
   });
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const domTheme = document.documentElement.dataset.theme;
+      if (domTheme === 'dark' || domTheme === 'light') {
+        setIsDark(domTheme === 'dark');
+        return;
+      }
+
+      const saved = window.localStorage.getItem('cafetoolbox-theme');
+      setIsDark(saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches));
+    };
+
+    syncTheme();
+  }, []);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const domTheme = document.documentElement.dataset.theme;
+      if (domTheme === 'dark' || domTheme === 'light') {
+        setIsDark(domTheme === 'dark');
+        return;
+      }
+
+      const saved = window.localStorage.getItem('cafetoolbox-theme');
+      setIsDark(saved === 'dark');
+    };
+
+    const handleThemeChange = () => syncTheme();
+    const handleStorage = () => syncTheme();
+
+    window.addEventListener('cafetoolbox-theme-change', handleThemeChange);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('cafetoolbox-theme-change', handleThemeChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -175,7 +215,7 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-cream p-8 text-charcoalMuted">Đang tải hồ sơ...</div>;
+    return <div className={`p-8 ${isDark ? 'text-white/50' : 'text-charcoalMuted'}`}>Đang tải hồ sơ...</div>;
   }
 
   const displayName = profile?.display_name || profile?.email.split('@')[0] || 'User';
@@ -187,107 +227,125 @@ export default function SettingsPage() {
   return (
     <main className="max-w-6xl mx-auto px-6 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-charcoal mb-2">Cài đặt hồ sơ</h1>
-        <p className="text-charcoalMuted">Chỉnh thông tin hiển thị và xem nhanh trạng thái tài khoản.</p>
+        <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-charcoal'}`}>Cài đặt hồ sơ</h1>
+        <p className={isDark ? 'text-white/60' : 'text-charcoal'}>Chỉnh thông tin hiển thị và xem nhanh trạng thái tài khoản.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <aside className="bg-white border border-borderMain rounded-xl p-6 h-fit space-y-5">
+        <aside className={`rounded-xl border p-6 h-fit space-y-5 ${isDark ? 'border-white/10 bg-white/5' : 'border-white/55 bg-white/40 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]'}`}>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-charcoal flex items-center justify-center overflow-hidden shrink-0">
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 ${isDark ? 'bg-white/10' : 'bg-charcoal'}`}>
               {profile?.avatar_url ? (
                 <Image src={profile.avatar_url} alt="Avatar" width={64} height={64} unoptimized className="w-full h-full object-cover" />
               ) : (
-                <span className="text-neon text-xl font-semibold">{initials}</span>
+                <span className={`text-xl font-semibold ${isDark ? 'text-neon' : 'text-neon'}`}>{initials}</span>
               )}
             </div>
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold text-charcoal truncate">{displayName}</h2>
-              <p className="text-sm text-charcoalMuted truncate">{profile?.email}</p>
+              <h2 className={`text-lg font-semibold truncate ${isDark ? 'text-white' : 'text-charcoal'}`}>{displayName}</h2>
+              <p className={`text-sm truncate ${isDark ? 'text-white/50' : 'text-charcoal'}`}>{profile?.email}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg border border-borderMain bg-cream p-3">
-              <p className="text-charcoalMuted text-xs mb-1">Vai trò</p>
-              <p className={`font-semibold ${isSuperAdmin ? 'text-charcoal' : 'text-charcoal'}`}>{roleLabel}</p>
-              <p className="text-[11px] text-charcoalMuted mt-1">Raw: {rawRole}</p>
+            <div className={`rounded-lg border p-3 ${isDark ? 'border-white/8 bg-white/3' : 'border-white/60 bg-white/45 backdrop-blur-sm'}`}>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-charcoal'}`}>Vai trò</p>
+              {isSuperAdmin ? (
+                <span className="role-badge-shimmer inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-gradient-to-r from-amber-400/20 via-yellow-300/30 to-amber-400/20 text-amber-800 shadow-[0_0_6px_rgba(251,191,36,0.3),inset_0_0_0_0.5px_rgba(251,191,36,0.4)]">
+                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
+                  {roleLabel}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-charcoal/8 text-charcoal">
+                  <span className="role-dot-pulse h-1 w-1 rounded-full bg-charcoal/40" />
+                  {roleLabel}
+                </span>
+              )}
+              <p className={`text-[11px] mt-1.5 ${isDark ? 'text-white/35' : 'text-charcoal'}`}>Raw: {rawRole}</p>
             </div>
-            <div className="rounded-lg border border-borderMain bg-cream p-3">
-              <p className="text-charcoalMuted text-xs mb-1">Trạng thái</p>
-              <p className="font-semibold text-green-600">Sẵn sàng</p>
+            <div className={`rounded-lg border p-3 ${isDark ? 'border-white/8 bg-white/3' : 'border-white/60 bg-white/45 backdrop-blur-sm'}`}>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-charcoal'}`}>Trạng thái</p>
+              <p className="font-semibold text-green-500">Sẵn sàng</p>
             </div>
-            <div className="rounded-lg border border-borderMain bg-cream p-3 col-span-2">
-              <p className="text-charcoalMuted text-xs mb-1">Cập nhật gần nhất</p>
-              <p className="font-medium text-charcoal">{formatDate(profile?.updated_at)}</p>
+            <div className={`rounded-lg border p-3 col-span-2 ${isDark ? 'border-white/8 bg-white/3' : 'border-white/60 bg-white/45 backdrop-blur-sm'}`}>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-charcoal'}`}>Cập nhật gần nhất</p>
+              <p className={`font-medium ${isDark ? 'text-white' : 'text-charcoal'}`}>{formatDate(profile?.updated_at)}</p>
             </div>
-            <div className="rounded-lg border border-borderMain bg-cream p-3 col-span-2">
-              <p className="text-charcoalMuted text-xs mb-1">Hoạt động gần đây</p>
-              <p className="font-medium text-charcoal">{formatDate(profile?.last_activity)}</p>
+            <div className={`rounded-lg border p-3 col-span-2 ${isDark ? 'border-white/8 bg-white/3' : 'border-white/60 bg-white/45 backdrop-blur-sm'}`}>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-charcoal'}`}>Hoạt động gần đây</p>
+              <p className={`font-medium ${isDark ? 'text-white' : 'text-charcoal'}`}>{formatDate(profile?.last_activity)}</p>
             </div>
           </div>
 
-          <div className="rounded-lg bg-neonGhost border border-neon/30 p-4">
-            <p className="text-sm font-medium text-charcoal mb-1">Mẹo nhanh</p>
-            <p className="text-sm text-charcoalMuted leading-relaxed">
+          <div className={`rounded-lg border p-4 ${isDark ? 'bg-neon/5 border-neon/20' : 'bg-neonGhost border-neon/30'}`}>
+            <p className={`text-sm font-medium mb-1 ${isDark ? 'text-white' : 'text-charcoal'}`}>Mẹo nhanh</p>
+            <p className={`text-sm leading-relaxed ${isDark ? 'text-white/50' : 'text-charcoal'}`}>
               Đổi tên hiển thị và avatar ở đây sẽ cập nhật luôn vào thanh navbar sau khi lưu.
             </p>
           </div>
 
           <div className="flex gap-3">
-            <Link href="/dashboard" className="flex-1 text-center bg-charcoal text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors">
+            <Link href="/dashboard" className={`flex-1 text-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isDark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-charcoal text-white hover:bg-charcoalLight'}`}>
               Về dashboard
             </Link>
-            <Link href="/logout" className="flex-1 text-center border border-borderMain text-charcoal px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-borderLight transition-colors">
+            <Link href="/logout" className={`flex-1 text-center border px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isDark ? 'border-white/10 text-white/70 hover:bg-white/5' : 'border-white/60 text-charcoal hover:bg-white/45'}`}>
               Đăng xuất
             </Link>
           </div>
         </aside>
 
-        <section className="bg-white border border-borderMain rounded-xl p-6">
+        <section className={`rounded-xl border p-6 ${isDark ? 'border-white/10 bg-white/5' : 'border-white/55 bg-white/40 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]'}`}>
           <div className="flex items-start justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-charcoal">Thông tin cá nhân</h2>
-              <p className="text-sm text-charcoalMuted mt-1">Tùy chỉnh dữ liệu hồ sơ và ảnh đại diện.</p>
+              <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-charcoal'}`}>Thông tin cá nhân</h2>
+              <p className={`text-sm mt-1 ${isDark ? 'text-white/50' : 'text-charcoal'}`}>Tùy chỉnh dữ liệu hồ sơ và ảnh đại diện.</p>
             </div>
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-cream text-charcoalMuted border border-borderMain">
-              {roleLabel}
-            </span>
+            {isSuperAdmin ? (
+              <span className="role-badge-shimmer inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400/20 via-yellow-300/30 to-amber-400/20 text-amber-800 shadow-[0_0_6px_rgba(251,191,36,0.3),inset_0_0_0_0.5px_rgba(251,191,36,0.4)]">
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
+                {roleLabel}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-charcoal/8 text-charcoal">
+                <span className="role-dot-pulse h-1 w-1 rounded-full bg-charcoal/40" />
+                {roleLabel}
+              </span>
+            )}
           </div>
 
           <form onSubmit={handleSave} className="space-y-5">
-            {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>}
-            {success && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">{success}</p>}
+            {error && <p className={`text-sm rounded-lg px-4 py-3 ${isDark ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-red-600 bg-red-50 border border-red-200'}`}>{error}</p>}
+            {success && <p className={`text-sm rounded-lg px-4 py-3 ${isDark ? 'text-green-400 bg-green-500/10 border border-green-500/20' : 'text-green-700 bg-green-50 border border-green-200'}`}>{success}</p>}
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-charcoal mb-2">Email</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/70' : 'text-charcoal'}`}>Email</label>
                 <input
                   value={profile?.email ?? ''}
                   disabled
-                  className="w-full px-4 py-3 border border-borderMain rounded-lg bg-borderLight text-charcoalMuted"
+                  className={`w-full px-4 py-3 border rounded-lg ${isDark ? 'border-white/10 bg-white/5 text-white/40' : 'border-white/60 bg-white/55 text-charcoal'}`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-charcoal mb-2">Tên hiển thị</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/70' : 'text-charcoal'}`}>Tên hiển thị</label>
                 <input
                   value={profile?.display_name ?? ''}
                   onChange={(e) => setProfile((prev) => (prev ? { ...prev, display_name: e.target.value } : prev))}
-                  className="w-full px-4 py-3 border border-borderMain rounded-lg bg-white text-charcoal placeholder:text-charcoalMuted focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon"
+                  className={`w-full px-4 py-3 border rounded-lg placeholder:focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon ${isDark ? 'border-white/10 bg-white/5 text-white placeholder:text-white/30' : 'border-white/60 bg-white/55 text-charcoal placeholder:text-charcoal'}`}
                   placeholder="Ví dụ: Minh Anh"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-charcoal mb-2">Avatar URL</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/70' : 'text-charcoal'}`}>Avatar URL</label>
                 <input
                   value={profile?.avatar_url ?? ''}
                   onChange={(e) => setProfile((prev) => (prev ? { ...prev, avatar_url: e.target.value } : prev))}
-                  className="w-full px-4 py-3 border border-borderMain rounded-lg bg-white text-charcoal placeholder:text-charcoalMuted focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon ${isDark ? 'border-white/10 bg-white/5 text-white placeholder:text-white/30' : 'border-white/60 bg-white/55 text-charcoal placeholder:text-charcoal'}`}
                   placeholder="Dán liên kết ảnh đại diện"
                 />
-                <p className="text-xs text-charcoalMuted mt-2">Dùng ảnh trực tiếp từ URL công khai. Nếu để trống, hệ thống sẽ dùng chữ cái đầu.</p>
+                <p className={`text-xs mt-2 ${isDark ? 'text-white/40' : 'text-charcoal'}`}>Dùng ảnh trực tiếp từ URL công khai. Nếu để trống, hệ thống sẽ dùng chữ cái đầu.</p>
               </div>
             </div>
 
@@ -295,51 +353,51 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={saving}
-                className="bg-charcoal text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'bg-neon text-charcoal hover:bg-neon/90' : 'bg-charcoal text-white hover:bg-charcoalLight'}`}
               >
                 {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
               </button>
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="border border-borderMain text-charcoal px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-borderLight transition-colors"
+                className={`border px-5 py-2.5 rounded-lg text-sm font-medium transition-colors ${isDark ? 'border-white/10 text-white/70 hover:bg-white/5' : 'border-white/60 text-charcoal hover:bg-white/45'}`}
               >
                 Tải lại dữ liệu
               </button>
-              <Link href="/dashboard" className="text-sm text-charcoalMuted hover:text-charcoal transition-colors">
+              <Link href="/dashboard" className={`text-sm transition-colors ${isDark ? 'text-white/50 hover:text-white' : 'text-charcoal hover:text-charcoal'}`}>
                 Quay lại dashboard
               </Link>
             </div>
 
           </form>
 
-          <div className="border-t border-borderLight pt-6 mt-6">
-            <h3 className="text-lg font-semibold text-charcoal mb-1">Đổi mật khẩu</h3>
-            <p className="text-sm text-charcoalMuted mb-4">Đổi mật khẩu trực tiếp cho tài khoản đang đăng nhập.</p>
+          <div className={`border-t pt-6 mt-6 ${isDark ? 'border-white/10' : 'border-borderLight'}`}>
+            <h3 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-charcoal'}`}>Đổi mật khẩu</h3>
+            <p className={`text-sm mb-4 ${isDark ? 'text-white/50' : 'text-charcoal'}`}>Đổi mật khẩu trực tiếp cho tài khoản đang đăng nhập.</p>
 
-            {passwordError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">{passwordError}</p>}
-            {passwordSuccess && <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4">{passwordSuccess}</p>}
+            {passwordError && <p className={`text-sm rounded-lg px-4 py-3 mb-4 ${isDark ? 'text-red-400 bg-red-500/10 border border-red-500/20' : 'text-red-600 bg-red-50 border border-red-200'}`}>{passwordError}</p>}
+            {passwordSuccess && <p className={`text-sm rounded-lg px-4 py-3 mb-4 ${isDark ? 'text-green-400 bg-green-500/10 border border-green-500/20' : 'text-green-700 bg-green-50 border border-green-200'}`}>{passwordSuccess}</p>}
 
             <form onSubmit={handlePasswordChange} className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-charcoal mb-2">Mật khẩu mới</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/70' : 'text-charcoal'}`}>Mật khẩu mới</label>
                 <input
                   type="password"
                   minLength={6}
                   value={passwordForm.password}
                   onChange={(e) => setPasswordForm((prev) => ({ ...prev, password: e.target.value }))}
-                  className="w-full px-4 py-3 border border-borderMain rounded-lg bg-white text-charcoal focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon ${isDark ? 'border-white/10 bg-white/5 text-white' : 'border-white/60 bg-white/55 text-charcoal'}`}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-charcoal mb-2">Xác nhận mật khẩu mới</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/70' : 'text-charcoal'}`}>Xác nhận mật khẩu mới</label>
                 <input
                   type="password"
                   minLength={6}
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                  className="w-full px-4 py-3 border border-borderMain rounded-lg bg-white text-charcoal focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon"
+                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon ${isDark ? 'border-white/10 bg-white/5 text-white' : 'border-white/60 bg-white/55 text-charcoal'}`}
                 />
               </div>
 
@@ -347,11 +405,11 @@ export default function SettingsPage() {
                 <button
                   type="submit"
                   disabled={passwordSaving}
-                  className="bg-charcoal text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'bg-neon text-charcoal hover:bg-neon/90' : 'bg-charcoal text-white hover:bg-charcoalLight'}`}
                 >
                   {passwordSaving ? 'Đang cập nhật...' : 'Đổi mật khẩu'}
                 </button>
-                <Link href="/forgot-password" className="text-sm text-charcoalMuted hover:text-charcoal transition-colors">
+                <Link href="/forgot-password" className={`text-sm transition-colors ${isDark ? 'text-white/50 hover:text-white' : 'text-charcoal hover:text-charcoal'}`}>
                   Quên mật khẩu? Gửi link reset
                 </Link>
               </div>

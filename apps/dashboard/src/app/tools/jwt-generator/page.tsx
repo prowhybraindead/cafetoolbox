@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 // Import components locally to keep things co-located
 // The actual heavy components are loaded via dynamic imports below
@@ -38,6 +38,29 @@ type Tab = 'decoder' | 'generator';
 
 export default function JwtToolPage() {
   const [activeTab, setActiveTab] = useState<Tab>('decoder');
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const domTheme = document.documentElement.dataset.theme;
+      if (domTheme === 'dark' || domTheme === 'light') {
+        setIsDark(domTheme === 'dark');
+        return;
+      }
+      const saved = window.localStorage.getItem('cafetoolbox-theme');
+      setIsDark(saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches));
+    };
+
+    syncTheme();
+    const handleThemeChange = () => syncTheme();
+    const handleStorage = () => syncTheme();
+    window.addEventListener('cafetoolbox-theme-change', handleThemeChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('cafetoolbox-theme-change', handleThemeChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-12">
@@ -50,10 +73,10 @@ export default function JwtToolPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-charcoal">
+            <h1 className={`text-2xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-charcoal'}`}>
               JWT Toolbox
             </h1>
-            <p className="text-sm text-charcoalMuted">
+            <p className={`text-sm ${isDark ? 'text-white/65' : 'text-charcoal'}`}>
               Giải mã và tạo JWT token ngay trên trình duyệt
             </p>
           </div>
@@ -61,13 +84,15 @@ export default function JwtToolPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-1 p-1 bg-white/50 border border-borderMain rounded-lg w-fit mb-8">
+      <div className={`flex gap-1 p-1 border rounded-lg w-fit mb-8 ${isDark ? 'bg-white/5 border-white/10' : 'border-white/55 bg-white/45 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]'}`}>
         <button
           onClick={() => setActiveTab('decoder')}
           className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
             activeTab === 'decoder'
               ? 'bg-charcoal text-white shadow-sm'
-              : 'text-charcoalMuted hover:text-charcoal hover:bg-neonGhost'
+              : isDark
+              ? 'text-white/70 hover:text-white hover:bg-white/10'
+              : 'text-charcoal hover:text-charcoal hover:bg-neonGhost'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -86,7 +111,9 @@ export default function JwtToolPage() {
           className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
             activeTab === 'generator'
               ? 'bg-charcoal text-white shadow-sm'
-              : 'text-charcoalMuted hover:text-charcoal hover:bg-neonGhost'
+              : isDark
+              ? 'text-white/70 hover:text-white hover:bg-white/10'
+              : 'text-charcoal hover:text-charcoal hover:bg-neonGhost'
           }`}
         >
           <span className="flex items-center gap-2">
@@ -100,12 +127,12 @@ export default function JwtToolPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white/30 border border-borderMain rounded-xl p-6">
+      <div className={`border rounded-xl p-6 ${isDark ? 'border-white/10 bg-white/5' : 'border-white/55 bg-white/40 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]'}`}>
         {activeTab === 'decoder' ? <JwtDecoder /> : <JwtGenerator />}
       </div>
 
       {/* Footer Info */}
-      <div className="mt-8 flex items-center gap-2 text-[11px] text-charcoalMuted/60">
+      <div className={`mt-8 flex items-center gap-2 text-[11px] ${isDark ? 'text-white/45' : 'text-charcoal'}`}>
         <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <path d="M12 16v-4" />

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type OutputFormat = "video" | "audio";
 type CardStatus = "loading" | "ready" | "info-error";
@@ -84,6 +84,29 @@ export default function ConvertubeDashboardPage() {
   const [isFetchingInfo, setIsFetchingInfo] = useState(false);
   const [fetchProgress, setFetchProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const domTheme = document.documentElement.dataset.theme;
+      if (domTheme === "dark" || domTheme === "light") {
+        setIsDark(domTheme === "dark");
+        return;
+      }
+      const saved = window.localStorage.getItem("cafetoolbox-theme");
+      setIsDark(saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches));
+    };
+
+    syncTheme();
+    const handleThemeChange = () => syncTheme();
+    const handleStorage = () => syncTheme();
+    window.addEventListener("cafetoolbox-theme-change", handleThemeChange);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("cafetoolbox-theme-change", handleThemeChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   const canFetch = useMemo(() => parseUrls(rawUrls).length > 0 && !isFetchingInfo, [rawUrls, isFetchingInfo]);
 
@@ -466,24 +489,33 @@ export default function ConvertubeDashboardPage() {
   const hasMoreThanOneReady = cards.filter(
     (card) => card.status === "ready" && card.downloads[format].status === "idle"
   ).length > 1;
+  const textMain = isDark ? "text-white" : "text-charcoal";
+  const textSub = isDark ? "text-white/65" : "text-charcoal";
+  const sectionCard = isDark
+    ? "bg-white/5 border-white/10"
+    : "border-white/55 bg-white/40 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]";
+  const fieldBg = isDark ? "bg-white/5 border-white/10 text-white placeholder:text-white/40" : "bg-white/55 border-white/60 text-charcoal placeholder:text-charcoal";
+  const actionPrimary = isDark
+    ? "bg-neon text-charcoal hover:bg-neon/90"
+    : "bg-charcoal text-white hover:bg-charcoalLight";
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-12">
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-charcoal mb-2">Convertube</h1>
-        <p className="text-sm text-charcoalMuted leading-relaxed">
+        <h1 className={`text-2xl md:text-3xl font-semibold tracking-tight mb-2 ${textMain}`}>Convertube</h1>
+        <p className={`text-sm leading-relaxed ${textSub}`}>
           Dán link YouTube, TikTok, Instagram... rồi tải trực tiếp trong dashboard.
         </p>
       </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <span className="iconify text-charcoalMuted" data-icon="lucide:download-cloud" data-width="18" />
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-charcoalMuted">Input</h2>
-        <div className="flex-1 h-px bg-borderMain ml-4" />
+        <span className={`iconify ${isDark ? "text-white/60" : "text-charcoal"}`} data-icon="lucide:download-cloud" data-width="18" />
+        <h2 className={`text-sm font-semibold uppercase tracking-wider ${isDark ? "text-white/70" : "text-charcoal"}`}>Input</h2>
+        <div className={`flex-1 h-px ml-4 ${isDark ? "bg-white/10" : "bg-borderMain"}`} />
       </div>
 
-      <section className="bg-white border border-borderMain rounded-xl p-6 mb-6">
-        <label className="block text-sm font-medium text-charcoal mb-2" htmlFor="convertube-urls">
+      <section className={`border rounded-xl p-6 mb-6 ${sectionCard}`}>
+        <label className={`block text-sm font-medium mb-2 ${textMain}`} htmlFor="convertube-urls">
           Danh sách URL
         </label>
         <textarea
@@ -492,9 +524,9 @@ export default function ConvertubeDashboardPage() {
           onChange={(event) => setRawUrls(event.target.value)}
           rows={4}
           placeholder="Mỗi link cách nhau bằng dấu cách, dấu phẩy hoặc xuống dòng"
-          className="w-full px-4 py-3 border border-borderMain rounded-lg bg-white text-charcoal placeholder:text-charcoalMuted focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon"
+          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-1 focus:ring-neon focus:border-neon ${fieldBg}`}
         />
-        <p className="text-xs text-charcoalMuted mt-2">Hỗ trợ nhập nhiều link một lần.</p>
+        <p className={`text-xs mt-2 ${textSub}`}>Hỗ trợ nhập nhiều link một lần.</p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <div className="inline-flex border border-borderMain rounded-lg overflow-hidden">
@@ -502,7 +534,11 @@ export default function ConvertubeDashboardPage() {
               type="button"
               onClick={() => setFormat("video")}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
-                format === "video" ? "bg-charcoal text-white" : "bg-white text-charcoal hover:bg-borderLight"
+                format === "video"
+                  ? "bg-charcoal text-white"
+                  : isDark
+                  ? "bg-white/5 text-white hover:bg-white/10"
+                  : "bg-white/55 text-charcoal hover:bg-borderLight"
               }`}
             >
               MP4
@@ -511,7 +547,11 @@ export default function ConvertubeDashboardPage() {
               type="button"
               onClick={() => setFormat("audio")}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
-                format === "audio" ? "bg-charcoal text-white" : "bg-white text-charcoal hover:bg-borderLight"
+                format === "audio"
+                  ? "bg-charcoal text-white"
+                  : isDark
+                  ? "bg-white/5 text-white hover:bg-white/10"
+                  : "bg-white/55 text-charcoal hover:bg-borderLight"
               }`}
             >
               MP3
@@ -522,20 +562,20 @@ export default function ConvertubeDashboardPage() {
             type="button"
             disabled={!canFetch}
             onClick={fetchVideoInfo}
-            className="bg-charcoal text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${actionPrimary}`}
           >
             {isFetchingInfo ? "Đang đọc thông tin..." : "Lấy thông tin video"}
           </button>
         </div>
         {isFetchingInfo && fetchProgress.total > 0 ? (
           <div className="mt-4">
-            <div className="flex items-center justify-between text-xs text-charcoalMuted mb-1">
+            <div className={`flex items-center justify-between text-xs mb-1 ${textSub}`}>
               <span>Đang lấy thông tin video</span>
               <span>
                 {fetchProgress.done}/{fetchProgress.total}
               </span>
             </div>
-            <div className="h-2 rounded-full bg-borderLight overflow-hidden">
+            <div className={`h-2 rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-borderLight"}`}>
               <div
                 className="h-full bg-neon transition-all duration-300"
                 style={{ width: `${Math.max(5, (fetchProgress.done / fetchProgress.total) * 100)}%` }}
@@ -551,7 +591,7 @@ export default function ConvertubeDashboardPage() {
             type="button"
             onClick={downloadAllReady}
             disabled={isDownloadingAll}
-            className="bg-charcoal text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${actionPrimary}`}
           >
             {isDownloadingAll ? "Đang đưa vào queue..." : "Download tất cả link sẵn sàng"}
           </button>
@@ -559,9 +599,9 @@ export default function ConvertubeDashboardPage() {
       ) : null}
 
       <div className="flex items-center gap-3 mb-4">
-        <span className="iconify text-charcoalMuted" data-icon="lucide:list-video" data-width="18" />
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-charcoalMuted">Kết quả</h2>
-        <div className="flex-1 h-px bg-borderMain ml-4" />
+        <span className={`iconify ${isDark ? "text-white/60" : "text-charcoal"}`} data-icon="lucide:list-video" data-width="18" />
+        <h2 className={`text-sm font-semibold uppercase tracking-wider ${isDark ? "text-white/70" : "text-charcoal"}`}>Kết quả</h2>
+        <div className={`flex-1 h-px ml-4 ${isDark ? "bg-white/10" : "bg-borderMain"}`} />
       </div>
 
       <div className="space-y-3">
@@ -589,8 +629,12 @@ export default function ConvertubeDashboardPage() {
               key={card.id}
               className={`bg-white border rounded-xl p-4 ${
                 card.status === "info-error" || currentDownload.status === "error"
-                  ? "border-red-200 bg-red-50/40"
-                  : "border-borderMain"
+                  ? isDark
+                    ? "border-red-400/40 bg-red-500/10"
+                    : "border-red-200 bg-red-50/40"
+                  : isDark
+                  ? "border-white/10 bg-white/5"
+                  : "border-white/55 bg-white/40 backdrop-blur-md"
               }`}
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-start">
@@ -617,9 +661,9 @@ export default function ConvertubeDashboardPage() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-base font-semibold text-charcoal truncate">{card.title || card.url}</h2>
-                  <p className="text-xs text-charcoalMuted mt-1 break-all">{card.url}</p>
-                  <p className="text-xs text-charcoalMuted mt-1">
+                  <h2 className={`text-base font-semibold truncate ${textMain}`}>{card.title || card.url}</h2>
+                  <p className={`text-xs mt-1 break-all ${textSub}`}>{card.url}</p>
+                  <p className={`text-xs mt-1 ${textSub}`}>
                     {card.uploader || "Không rõ kênh"}
                     {card.duration ? ` | ${formatDuration(card.duration)}` : ""}
                   </p>
@@ -640,6 +684,8 @@ export default function ConvertubeDashboardPage() {
                           className={`px-3 py-1.5 text-xs rounded-md border transition-colors ${
                             card.selectedFormatId === videoFormat.id
                               ? "border-charcoal bg-charcoal text-white"
+                              : isDark
+                              ? "border-white/20 text-white hover:bg-white/10"
                               : "border-borderMain text-charcoal hover:bg-borderLight"
                           }`}
                         >
@@ -669,7 +715,7 @@ export default function ConvertubeDashboardPage() {
                       <button
                         type="button"
                         onClick={() => saveFile(card)}
-                        className="bg-neon text-charcoal px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition"
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition ${isDark ? "bg-neon text-charcoal hover:bg-neon/90" : "bg-neon text-charcoal hover:brightness-95"}`}
                       >
                         {format === "audio" ? "Lưu MP3" : "Lưu MP4"}
                       </button>
@@ -693,22 +739,22 @@ export default function ConvertubeDashboardPage() {
                     <div className="mt-3">
                       {currentDownload.phase === "processing" ? (
                         <>
-                          <div className="text-xs text-charcoalMuted mb-1">
+                          <div className={`text-xs mb-1 ${textSub}`}>
                             {currentDownload.progressText || "Đang xử lý và chuyển đổi..."}
                           </div>
-                          <div className="h-2 rounded-full bg-borderLight overflow-hidden">
+                          <div className={`h-2 rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-borderLight"}`}>
                             <div className="h-full bg-neon animate-pulse" style={{ width: "100%" }} />
                           </div>
                         </>
                       ) : (
                         <>
-                          <div className="flex items-center justify-between text-xs text-charcoalMuted mb-1">
+                          <div className={`flex items-center justify-between text-xs mb-1 ${textSub}`}>
                             <span>{currentDownload.progressText || "Đang tải dữ liệu..."}</span>
                             <span>{progressPercent.toFixed(1)}%</span>
                           </div>
-                          <div className="h-2 rounded-full bg-borderLight overflow-hidden">
+                          <div className={`h-2 rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-borderLight"}`}>
                             <div
-                              className="h-full bg-charcoal transition-all duration-300"
+                              className={`h-full transition-all duration-300 ${isDark ? "bg-neon" : "bg-charcoal"}`}
                               style={{ width: `${Math.max(2, progressPercent)}%` }}
                             />
                           </div>

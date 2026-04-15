@@ -277,7 +277,19 @@ export default function HomePage() {
                 </div>
                 <div className="text-left leading-tight hidden md:block">
                   <p className={`max-w-[120px] truncate text-sm font-medium ${isDark ? 'text-white' : 'text-charcoal'}`}>{displayName}</p>
-                  <p className={`max-w-[120px] truncate text-[10px] ${isDark ? 'text-white/60' : 'text-charcoalMuted'}`}>{roleLabel}</p>
+                  <div className="max-w-[130px] truncate mt-0.5">
+                    {normalizeRole(user?.role) === 'superadmin' ? (
+                      <span className={`role-badge-shimmer inline-flex items-center gap-1 px-1.5 py-px rounded-full font-semibold text-[10px] shadow-[0_0_8px_rgba(251,191,36,0.25),inset_0_0_0_0.5px_rgba(251,191,36,0.35)] ${isDark ? 'bg-gradient-to-r from-amber-400/20 via-yellow-300/25 to-amber-400/20 text-amber-300' : 'bg-gradient-to-r from-amber-400/20 via-yellow-300/30 to-amber-400/20 text-amber-800'}`}>
+                        <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8 5.8 21.3l2.4-7.4L2 9.4h7.6z" /></svg>
+                        {roleLabel}
+                      </span>
+                    ) : (
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-px rounded-full text-[10px] font-medium ${isDark ? 'bg-white/10 text-white/55' : 'bg-charcoal/8 text-charcoalMuted'}`}>
+                        <span className={`role-dot-pulse h-1 w-1 rounded-full ${isDark ? 'bg-white/30' : 'bg-charcoal/35'}`} />
+                        {roleLabel}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             ) : (

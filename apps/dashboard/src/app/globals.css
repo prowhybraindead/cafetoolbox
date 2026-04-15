@@ -1,6 +1,25 @@
 /* Import global CSS from @cafetoolbox/ui */
 @import "@cafetoolbox/ui/globals.css";
 
+@keyframes roleBadgeShimmer {
+  0% { background-position: -120% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes roleDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.75); }
+}
+
+.role-badge-shimmer {
+  background-size: 200% 100%;
+  animation: roleBadgeShimmer 3s ease-in-out infinite;
+}
+
+.role-dot-pulse {
+  animation: roleDotPulse 2s ease-in-out infinite;
+}
+
 @keyframes themeStarTwinkle {
   0%, 100% { opacity: 0.35; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.35); }
@@ -106,4 +125,46 @@
 
 .landing-bg-shooting-c {
   animation: shootingStarC 9.4s linear infinite;
+}
+
+.glass-light-card {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+.glass-light-soft {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.admin-dark .glass-light-card,
+.admin-dark .glass-light-soft {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+}
+
+.admin-dark .text-charcoal {
+  color: rgba(255, 255, 255, 0.94) !important;
+}
+
+.admin-dark .text-charcoalMuted {
+  color: rgba(255, 255, 255, 0.62) !important;
+}
+
+.admin-dark .bg-white {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+.admin-dark .border-borderMain {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-dark .bg-cream\/50,
+.admin-dark .bg-cream\/30,
+.admin-dark .bg-cream {
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }

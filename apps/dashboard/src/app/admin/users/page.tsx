@@ -278,10 +278,10 @@ export default function AdminUsersPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-charcoal">Quản lý Người dùng</h1>
-          <p className="text-sm text-charcoalMuted mt-1">Xem và phân quyền tài khoản trong hệ thống</p>
+          <p className="text-sm text-charcoal mt-1">Xem và phân quyền tài khoản trong hệ thống</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-charcoalMuted">{profiles.length} người dùng</span>
+          <span className="text-sm text-charcoal">{profiles.length} người dùng</span>
           <button
             onClick={() => setShowCreate(true)}
             className="bg-charcoal text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors flex items-center gap-2"
@@ -314,7 +314,7 @@ export default function AdminUsersPage() {
 
       {showCreate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreate(false)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-light-card rounded-xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold text-charcoal mb-5">Tạo user mới</h2>
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
@@ -325,7 +325,7 @@ export default function AdminUsersPage() {
                   value={createForm.email}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
                   placeholder="new-user@cafetoolbox.app"
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
               </div>
               <div>
@@ -337,7 +337,7 @@ export default function AdminUsersPage() {
                   value={createForm.password}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
                   placeholder="Tối thiểu 6 ký tự"
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
               </div>
               <div>
@@ -346,7 +346,7 @@ export default function AdminUsersPage() {
                   value={createForm.display_name}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, display_name: e.target.value }))}
                   placeholder="Optional"
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
               </div>
               <div>
@@ -354,7 +354,7 @@ export default function AdminUsersPage() {
                 <select
                   value={createForm.role}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, role: e.target.value as 'user' | 'superadmin' }))}
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 >
                   <option value="user">user</option>
                   <option value="superadmin">superadmin</option>
@@ -383,7 +383,7 @@ export default function AdminUsersPage() {
 
       {showEdit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEdit(false)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-light-card rounded-xl p-6 w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold text-charcoal mb-5">Chỉnh sửa user</h2>
             <form onSubmit={handleEditUser} className="space-y-4">
               <div>
@@ -391,7 +391,7 @@ export default function AdminUsersPage() {
                 <input
                   value={editForm.display_name}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, display_name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
               </div>
               <div>
@@ -399,7 +399,7 @@ export default function AdminUsersPage() {
                 <input
                   value={editForm.avatar_url}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, avatar_url: e.target.value }))}
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
               </div>
               <div>
@@ -407,7 +407,7 @@ export default function AdminUsersPage() {
                 <select
                   value={editForm.role}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value as 'user' | 'superadmin' }))}
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 >
                   <option value="user">user</option>
                   <option value="superadmin">superadmin</option>
@@ -421,9 +421,9 @@ export default function AdminUsersPage() {
                   value={editForm.password}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, password: e.target.value }))}
                   placeholder="Để trống nếu không đổi"
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
-                <p className="text-xs text-charcoalMuted mt-1">Nhập để reset mật khẩu user bằng quyền admin.</p>
+                <p className="text-xs text-charcoal mt-1">Nhập để reset mật khẩu user bằng quyền admin.</p>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
@@ -448,12 +448,12 @@ export default function AdminUsersPage() {
 
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDeleteId(null)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-light-card rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="iconify text-red-500" data-icon="lucide:trash-2" data-width="24" />
             </div>
             <h3 className="text-lg font-semibold text-charcoal text-center mb-2">Xóa user?</h3>
-            <p className="text-sm text-charcoalMuted text-center mb-6">Hành động này không thể hoàn tác.</p>
+            <p className="text-sm text-charcoal text-center mb-6">Hành động này không thể hoàn tác.</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteId(null)}
@@ -475,22 +475,22 @@ export default function AdminUsersPage() {
 
       {/* Users Table */}
       {profiles.length === 0 ? (
-        <div className="bg-white border border-borderMain rounded-xl p-12 text-center">
+        <div className="glass-light-card rounded-xl p-12 text-center">
           <div className="w-16 h-16 bg-borderLight rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="iconify text-charcoalMuted" data-icon="lucide:users" data-width="32" />
+            <span className="iconify text-charcoal" data-icon="lucide:users" data-width="32" />
           </div>
           <h3 className="text-lg font-semibold text-charcoal mb-2">Chưa có người dùng</h3>
         </div>
       ) : (
-        <div className="bg-white border border-borderMain rounded-xl overflow-hidden">
+        <div className="glass-light-card rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-borderMain bg-cream/50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Người dùng</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Email</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Quyền</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Ngày tạo</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Thao tác</th>
+              <tr className="border-b border-borderMain bg-white/45">
+                <th className="text-left px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Người dùng</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Email</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Quyền</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Ngày tạo</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -515,7 +515,7 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="text-sm text-charcoalMuted">{profile.email}</span>
+                    <span className="text-sm text-charcoal">{profile.email}</span>
                   </td>
                   <td className="px-5 py-4 text-center">
                     <span
@@ -529,7 +529,7 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="text-xs text-charcoalMuted">
+                    <span className="text-xs text-charcoal">
                       {new Date(profile.created_at).toLocaleDateString('vi-VN')}
                     </span>
                   </td>

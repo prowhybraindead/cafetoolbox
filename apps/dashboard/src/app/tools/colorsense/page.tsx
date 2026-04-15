@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 const PickerTab = dynamic(
@@ -87,6 +87,29 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function ColorSensePage() {
   const [activeTab, setActiveTab] = useState<Tab>('picker');
   const [toast, setToast] = useState<string | null>(null);
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const domTheme = document.documentElement.dataset.theme;
+      if (domTheme === 'dark' || domTheme === 'light') {
+        setIsDark(domTheme === 'dark');
+        return;
+      }
+      const saved = window.localStorage.getItem('cafetoolbox-theme');
+      setIsDark(saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches));
+    };
+
+    syncTheme();
+    const handleThemeChange = () => syncTheme();
+    const handleStorage = () => syncTheme();
+    window.addEventListener('cafetoolbox-theme-change', handleThemeChange);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('cafetoolbox-theme-change', handleThemeChange);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -120,10 +143,10 @@ export default function ColorSensePage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-charcoal">
+            <h1 className={`text-2xl font-semibold tracking-tight ${isDark ? 'text-white' : 'text-charcoal'}`}>
               ColorSense
             </h1>
-            <p className="text-sm text-charcoalMuted">
+            <p className={`text-sm ${isDark ? 'text-white/65' : 'text-charcoal'}`}>
               Chọn màu, trích xuất từ ảnh, và kiểm tra độ tương phản WCAG
             </p>
           </div>
@@ -131,7 +154,7 @@ export default function ColorSensePage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex gap-1 p-1 bg-white/50 border border-borderMain rounded-lg w-fit mb-8">
+      <div className={`flex gap-1 p-1 border rounded-lg w-fit mb-8 ${isDark ? 'bg-white/5 border-white/10' : 'border-white/55 bg-white/45 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]'}`}>
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -139,7 +162,9 @@ export default function ColorSensePage() {
             className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
               activeTab === tab.id
                 ? 'bg-charcoal text-white shadow-sm'
-                : 'text-charcoalMuted hover:text-charcoal hover:bg-neonGhost'
+                : isDark
+                ? 'text-white/70 hover:text-white hover:bg-white/10'
+                : 'text-charcoal hover:text-charcoal hover:bg-neonGhost'
             }`}
           >
             <span className="flex items-center gap-2">
@@ -151,7 +176,7 @@ export default function ColorSensePage() {
       </div>
 
       {/* Tab Content */}
-      <div className="border border-borderMain rounded-2xl p-6 bg-white/30">
+      <div className={`border rounded-2xl p-6 ${isDark ? 'border-white/10 bg-white/5' : 'border-white/55 bg-white/40 backdrop-blur-md shadow-[0_10px_30px_rgba(15,23,42,0.08)]'}`}>
         {activeTab === 'picker' && <PickerTab onCopy={copyToClipboard} />}
         {activeTab === 'extractor' && <ExtractorTab onCopy={copyToClipboard} />}
         {activeTab === 'contrast' && <ContrastCheckerTab onCopy={copyToClipboard} />}
