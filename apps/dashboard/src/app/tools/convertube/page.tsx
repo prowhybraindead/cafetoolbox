@@ -4,12 +4,21 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 
 type OutputFormat = "video" | "audio";
-type CardStatus = "loading" | "ready" | "info-error" | "queued" | "downloading" | "done" | "error";
+type CardStatus = "loading" | "ready" | "info-error";
+type DownloadStatus = "idle" | "queued" | "downloading" | "done" | "error";
 
 type VideoFormat = {
   id: string;
   label: string;
   height: number;
+};
+
+type DownloadState = {
+  status: DownloadStatus;
+  jobId?: string;
+  filename?: string;
+  queuePosition?: number | null;
+  error?: string;
 };
 
 type DownloadCard = {
@@ -21,11 +30,9 @@ type DownloadCard = {
   uploader?: string;
   formats?: VideoFormat[];
   selectedFormatId?: string | null;
-  jobId?: string;
-  filename?: string;
-  queuePosition?: number | null;
   error?: string;
   status: CardStatus;
+  downloads: Record<OutputFormat, DownloadState>;
 };
 
 function parseUrls(input: string): string[] {
@@ -59,6 +66,13 @@ function randomId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function getInitialDownloads(): Record<OutputFormat, DownloadState> {
+  return {
+    video: { status: "idle" },
+    audio: { status: "idle" },
+  };
+}
+
 export default function ConvertubeDashboardPage() {
   const [format, setFormat] = useState<OutputFormat>("video");
   const [rawUrls, setRawUrls] = useState("");
@@ -81,6 +95,7 @@ export default function ConvertubeDashboardPage() {
       id: randomId(),
       url,
       status: "loading",
+      downloads: getInitialDownloads(),
     }));
     setCards(nextCards);
 
@@ -150,12 +165,12 @@ export default function ConvertubeDashboardPage() {
     setIsFetchingInfo(false);
   }
 
-  async function pollJob(cardId: string, jobId: string) {
+  async function pollJob(cardId: string, targetFormat: OutputFormat, jobId: string) {
     const intervalId = window.setInterval(async () => {
       try {
         const response = await fetch(`/api/tools/convertube/status/${encodeURIComponent(jobId)}`);
         const payload = (await response.json().catch(() => ({}))) as {
-          status?: CardStatus;
+          status?: DownloadStatus;
           error?: string;
           filename?: string;
           queue_position?: number | null;
@@ -168,8 +183,14 @@ export default function ConvertubeDashboardPage() {
               card.id === cardId
                 ? {
                     ...card,
-                    status: "error",
-                    error: mapFriendlyError(payload.error || "Không thể đọc trạng thái job."),
+                    downloads: {
+                      ...card.downloads,
+                      [targetFormat]: {
+                        ...card.downloads[targetFormat],
+                        status: "error",
+                        error: mapFriendlyError(payload.error || "Không thể đọc trạng thái job."),
+                      },
+                    },
                   }
                 : card
             )
@@ -184,9 +205,16 @@ export default function ConvertubeDashboardPage() {
               card.id === cardId
                 ? {
                     ...card,
-                    status: "done",
-                    filename: payload.filename,
-                    queuePosition: null,
+                    downloads: {
+                      ...card.downloads,
+                      [targetFormat]: {
+                        ...card.downloads[targetFormat],
+                        status: "done",
+                        filename: payload.filename,
+                        queuePosition: null,
+                        error: "",
+                      },
+                    },
                   }
                 : card
             )
@@ -201,9 +229,15 @@ export default function ConvertubeDashboardPage() {
               card.id === cardId
                 ? {
                     ...card,
-                    status: "error",
-                    error: mapFriendlyError(payload.error || "Download thất bại."),
-                    queuePosition: null,
+                    downloads: {
+                      ...card.downloads,
+                      [targetFormat]: {
+                        ...card.downloads[targetFormat],
+                        status: "error",
+                        error: mapFriendlyError(payload.error || "Download thất bại."),
+                        queuePosition: null,
+                      },
+                    },
                   }
                 : card
             )
@@ -217,8 +251,14 @@ export default function ConvertubeDashboardPage() {
               card.id === cardId
                 ? {
                     ...card,
-                    status: "queued",
-                    queuePosition: payload.queue_position ?? null,
+                    downloads: {
+                      ...card.downloads,
+                      [targetFormat]: {
+                        ...card.downloads[targetFormat],
+                        status: "queued",
+                        queuePosition: payload.queue_position ?? null,
+                      },
+                    },
                   }
                 : card
             )
@@ -232,8 +272,14 @@ export default function ConvertubeDashboardPage() {
               card.id === cardId
                 ? {
                     ...card,
-                    status: "downloading",
-                    queuePosition: null,
+                    downloads: {
+                      ...card.downloads,
+                      [targetFormat]: {
+                        ...card.downloads[targetFormat],
+                        status: "downloading",
+                        queuePosition: null,
+                      },
+                    },
                   }
                 : card
             )
@@ -246,8 +292,14 @@ export default function ConvertubeDashboardPage() {
             card.id === cardId
               ? {
                   ...card,
-                  status: "error",
-                  error: "Mất kết nối khi theo dõi tiến trình.",
+                  downloads: {
+                    ...card.downloads,
+                    [targetFormat]: {
+                      ...card.downloads[targetFormat],
+                      status: "error",
+                      error: "Mất kết nối khi theo dõi tiến trình.",
+                    },
+                  },
                 }
               : card
           )
@@ -257,6 +309,7 @@ export default function ConvertubeDashboardPage() {
   }
 
   async function startDownload(cardId: string) {
+    const targetFormat: OutputFormat = format;
     const card = cards.find((item) => item.id === cardId);
     if (!card) return;
 
@@ -265,8 +318,14 @@ export default function ConvertubeDashboardPage() {
         item.id === cardId
           ? {
               ...item,
-              status: "downloading",
-              error: "",
+              downloads: {
+                ...item.downloads,
+                [targetFormat]: {
+                  ...item.downloads[targetFormat],
+                  status: "downloading",
+                  error: "",
+                },
+              },
             }
           : item
       )
@@ -278,15 +337,15 @@ export default function ConvertubeDashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: card.url,
-          format,
-          format_id: format === "video" ? card.selectedFormatId || null : null,
+          format: targetFormat,
+          format_id: targetFormat === "video" ? card.selectedFormatId || null : null,
           title: card.title || "",
         }),
       });
 
       const payload = (await response.json().catch(() => ({}))) as {
         job_id?: string;
-        status?: CardStatus;
+        status?: DownloadStatus;
         queue_position?: number | null;
         error?: string;
       };
@@ -297,8 +356,14 @@ export default function ConvertubeDashboardPage() {
             item.id === cardId
               ? {
                   ...item,
-                  status: "error",
-                  error: mapFriendlyError(payload.error || "Không thể bắt đầu download."),
+                  downloads: {
+                    ...item.downloads,
+                    [targetFormat]: {
+                      ...item.downloads[targetFormat],
+                      status: "error",
+                      error: mapFriendlyError(payload.error || "Không thể bắt đầu download."),
+                    },
+                  },
                 }
               : item
           )
@@ -311,23 +376,36 @@ export default function ConvertubeDashboardPage() {
           item.id === cardId
             ? {
                 ...item,
-                jobId: payload.job_id,
-                status: payload.status === "queued" ? "queued" : "downloading",
-                queuePosition: payload.queue_position ?? null,
+                downloads: {
+                  ...item.downloads,
+                  [targetFormat]: {
+                    ...item.downloads[targetFormat],
+                    jobId: payload.job_id,
+                    status: payload.status === "queued" ? "queued" : "downloading",
+                    queuePosition: payload.queue_position ?? null,
+                    error: "",
+                  },
+                },
               }
             : item
         )
       );
 
-      await pollJob(cardId, payload.job_id);
+      await pollJob(cardId, targetFormat, payload.job_id);
     } catch {
       setCards((prev) =>
         prev.map((item) =>
           item.id === cardId
             ? {
                 ...item,
-                status: "error",
-                error: "Không thể kết nối tới API dashboard.",
+                downloads: {
+                  ...item.downloads,
+                  [targetFormat]: {
+                    ...item.downloads[targetFormat],
+                    status: "error",
+                    error: "Không thể kết nối tới API dashboard.",
+                  },
+                },
               }
             : item
         )
@@ -337,7 +415,7 @@ export default function ConvertubeDashboardPage() {
 
   async function downloadAllReady() {
     setIsDownloadingAll(true);
-    const readyCards = cards.filter((card) => card.status === "ready");
+    const readyCards = cards.filter((card) => card.status === "ready" && card.downloads[format].status === "idle");
     for (const card of readyCards) {
       // eslint-disable-next-line no-await-in-loop
       await startDownload(card.id);
@@ -346,14 +424,17 @@ export default function ConvertubeDashboardPage() {
   }
 
   function saveFile(card: DownloadCard) {
-    if (!card.jobId) return;
+    const current = card.downloads[format];
+    if (!current.jobId) return;
     const link = document.createElement("a");
-    link.href = `/api/tools/convertube/file/${encodeURIComponent(card.jobId)}`;
-    link.download = card.filename || "";
+    link.href = `/api/tools/convertube/file/${encodeURIComponent(current.jobId)}`;
+    link.download = current.filename || "";
     link.click();
   }
 
-  const hasMoreThanOneReady = cards.filter((card) => card.status === "ready").length > 1;
+  const hasMoreThanOneReady = cards.filter(
+    (card) => card.status === "ready" && card.downloads[format].status === "idle"
+  ).length > 1;
 
   return (
     <main className="max-w-6xl mx-auto px-6 py-12">
@@ -438,17 +519,20 @@ export default function ConvertubeDashboardPage() {
 
       <div className="space-y-3">
         {cards.map((card) => {
+          const currentDownload = card.downloads[format];
           const isAudio = format === "audio";
           const statusText =
             card.status === "loading"
               ? "Đang tải thông tin..."
-              : card.status === "ready"
+              : card.status === "info-error"
+              ? "Lỗi"
+              : currentDownload.status === "idle"
               ? "Sẵn sàng tải"
-              : card.status === "queued"
-              ? `Đang chờ trong queue${card.queuePosition ? ` (#${card.queuePosition})` : ""}`
-              : card.status === "downloading"
+              : currentDownload.status === "queued"
+              ? `Đang chờ trong queue${currentDownload.queuePosition ? ` (#${currentDownload.queuePosition})` : ""}`
+              : currentDownload.status === "downloading"
               ? "Đang tải..."
-              : card.status === "done"
+              : currentDownload.status === "done"
               ? "Đã xong"
               : "Lỗi";
 
@@ -456,7 +540,7 @@ export default function ConvertubeDashboardPage() {
             <article
               key={card.id}
               className={`bg-white border rounded-xl p-4 ${
-                card.status === "error" || card.status === "info-error"
+                card.status === "info-error" || currentDownload.status === "error"
                   ? "border-red-200 bg-red-50/40"
                   : "border-borderMain"
               }`}
@@ -518,31 +602,36 @@ export default function ConvertubeDashboardPage() {
                   ) : null}
 
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {(card.status === "ready" || card.status === "error") && (
+                    {card.status === "ready" &&
+                      (currentDownload.status === "idle" || currentDownload.status === "error") && (
                       <button
                         type="button"
                         onClick={() => startDownload(card.id)}
                         className="bg-charcoal text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-charcoalLight transition-colors"
                       >
-                        {card.status === "error" ? "Thử lại" : "Download"}
+                        {currentDownload.status === "error"
+                          ? "Thử lại"
+                          : format === "audio"
+                          ? "Tải MP3"
+                          : "Tải MP4"}
                       </button>
                     )}
 
-                    {card.status === "done" && (
+                    {card.status === "ready" && currentDownload.status === "done" && (
                       <button
                         type="button"
                         onClick={() => saveFile(card)}
                         className="bg-neon text-charcoal px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition"
                       >
-                        Lưu file
+                        {format === "audio" ? "Lưu MP3" : "Lưu MP4"}
                       </button>
                     )}
 
                     <span
                       className={`font-mono text-[11px] ${
-                        card.status === "error" || card.status === "info-error"
+                        card.status === "info-error" || currentDownload.status === "error"
                           ? "text-red-600"
-                          : card.status === "done"
+                          : currentDownload.status === "done"
                           ? "text-neon font-medium"
                           : "text-charcoalMuted"
                       }`}
@@ -551,8 +640,10 @@ export default function ConvertubeDashboardPage() {
                     </span>
                   </div>
 
-                  {(card.status === "error" || card.status === "info-error") && card.error ? (
-                    <p className="text-sm text-red-600 mt-2">{card.error}</p>
+                  {(card.status === "info-error" && card.error) || currentDownload.error ? (
+                    <p className="text-sm text-red-600 mt-2">
+                      {card.status === "info-error" ? card.error : currentDownload.error}
+                    </p>
                   ) : null}
                 </div>
               </div>

@@ -8,6 +8,10 @@ import time
 import base64
 import hmac
 import hashlib
+import datetime
+import shutil
+import sys
+import importlib.util
 from collections import deque
 from functools import wraps
 from flask import Flask, request, jsonify, send_file, render_template, redirect, make_response
@@ -70,9 +74,22 @@ JOB_TTL_SECONDS = int(os.environ.get("JOB_TTL_SECONDS", "3600"))
 MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "1"))
 MAX_QUEUE_SIZE = int(os.environ.get("MAX_QUEUE_SIZE", "50"))
 MAX_JOBS_MEMORY = int(os.environ.get("MAX_JOBS_MEMORY", "200"))
+DOWNLOAD_FILE_TTL_SECONDS = int(os.environ.get("DOWNLOAD_FILE_TTL_SECONDS", str(JOB_TTL_SECONDS)))
+ENABLE_BACKGROUND_CLEANUP = os.environ.get("ENABLE_BACKGROUND_CLEANUP", "true").lower() == "true"
+BACKGROUND_CLEANUP_INTERVAL_SECONDS = max(
+    60, int(os.environ.get("BACKGROUND_CLEANUP_INTERVAL_SECONDS", "600"))
+)
+CLEANUP_DAILY_HOUR_UTC = int(os.environ.get("CLEANUP_DAILY_HOUR_UTC", "-1"))
+AUTO_INSTALL_PY_DEPS = os.environ.get("CONVERTUBE_AUTO_INSTALL_PY_DEPS", "true").lower() == "true"
+YTDLP_BIN_OVERRIDE = os.environ.get("YTDLP_BIN", "").strip()
 jobs_lock = threading.Lock()
 queue_condition = threading.Condition(jobs_lock)
 job_queue = deque()
+DEPENDENCIES = {
+    "yt_dlp_cmd": None,
+    "yt_dlp_ready": False,
+    "ffmpeg_ready": False,
+}
 
 
 def dedupe_urls(urls):
@@ -87,6 +104,62 @@ def dedupe_urls(urls):
         result.append(item)
 
     return result
+
+
+def ensure_python_package(import_name, pip_name):
+    if importlib.util.find_spec(import_name) is not None:
+        return True
+
+    if not AUTO_INSTALL_PY_DEPS:
+        return False
+
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", pip_name],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+    except Exception as exc:
+        print(f"[convertube] failed to auto-install {pip_name}: {exc}")
+        return False
+
+    return importlib.util.find_spec(import_name) is not None
+
+
+def resolve_ytdlp_cmd():
+    if YTDLP_BIN_OVERRIDE:
+        resolved = shutil.which(YTDLP_BIN_OVERRIDE) if os.path.sep not in YTDLP_BIN_OVERRIDE else YTDLP_BIN_OVERRIDE
+        if resolved and os.path.exists(resolved):
+            return [resolved]
+
+    binary = shutil.which("yt-dlp")
+    if binary:
+        return [binary]
+
+    if ensure_python_package("yt_dlp", "yt-dlp"):
+        return [sys.executable, "-m", "yt_dlp"]
+
+    return None
+
+
+def refresh_dependency_status():
+    ytdlp_cmd = resolve_ytdlp_cmd()
+    ffmpeg_cmd = shutil.which("ffmpeg")
+
+    DEPENDENCIES["yt_dlp_cmd"] = ytdlp_cmd
+    DEPENDENCIES["yt_dlp_ready"] = bool(ytdlp_cmd)
+    DEPENDENCIES["ffmpeg_ready"] = bool(ffmpeg_cmd)
+
+
+def get_ytdlp_cmd_or_error(require_ffmpeg=False):
+    refresh_dependency_status()
+    if not DEPENDENCIES["yt_dlp_ready"]:
+        return None, "Missing dependency: yt-dlp (install package or set YTDLP_BIN)."
+    if require_ffmpeg and not DEPENDENCIES["ffmpeg_ready"]:
+        return None, "Missing dependency: ffmpeg is required for merge/audio extraction."
+    return list(DEPENDENCIES["yt_dlp_cmd"]), None
 
 
 def resolve_dashboard_url():
@@ -251,6 +324,67 @@ def cleanup_jobs():
                 jobs.pop(job_id, None)
 
 
+def cleanup_download_dir():
+    now = now_ts()
+    removed = 0
+    kept = 0
+
+    pattern = os.path.join(DOWNLOAD_DIR, "*")
+    for file_path in glob.glob(pattern):
+        if not os.path.isfile(file_path):
+            continue
+
+        basename = os.path.basename(file_path)
+        if basename.startswith("."):
+            continue
+
+        try:
+            mtime = int(os.path.getmtime(file_path))
+        except OSError:
+            continue
+
+        age = now - mtime
+        if age >= DOWNLOAD_FILE_TTL_SECONDS:
+            try:
+                os.remove(file_path)
+                removed += 1
+            except OSError:
+                kept += 1
+        else:
+            kept += 1
+
+    return {"removed": removed, "kept": kept}
+
+
+def cleanup_worker_loop():
+    last_daily_run_date = None
+
+    while True:
+        time.sleep(BACKGROUND_CLEANUP_INTERVAL_SECONDS)
+
+        try:
+            cleanup_jobs()
+            cleanup_download_dir()
+        except Exception as exc:
+            print(f"[convertube] background cleanup error: {exc}")
+
+        if CLEANUP_DAILY_HOUR_UTC < 0 or CLEANUP_DAILY_HOUR_UTC > 23:
+            continue
+
+        try:
+            now_dt = datetime.datetime.utcnow()
+            today = now_dt.date()
+            if now_dt.hour == CLEANUP_DAILY_HOUR_UTC and last_daily_run_date != today:
+                cleanup_jobs()
+                cleanup_download_dir()
+                last_daily_run_date = today
+                print(
+                    f"[convertube] daily cleanup executed at hour={CLEANUP_DAILY_HOUR_UTC} UTC, date={today}"
+                )
+        except Exception as exc:
+            print(f"[convertube] daily cleanup error: {exc}")
+
+
 def run_download(job_id):
     with jobs_lock:
         job = jobs.get(job_id)
@@ -263,14 +397,53 @@ def run_download(job_id):
 
     out_template = os.path.join(DOWNLOAD_DIR, f"{job_id}.%(ext)s")
 
-    cmd = ["yt-dlp", "--no-playlist", "-o", out_template]
+    cmd, dep_error = get_ytdlp_cmd_or_error(require_ffmpeg=False)
+    if dep_error:
+        with jobs_lock:
+            if job_id in jobs:
+                jobs[job_id]["status"] = "error"
+                jobs[job_id]["error"] = dep_error
+                jobs[job_id]["updated_at"] = now_ts()
+                jobs[job_id]["expires_at"] = now_ts() + JOB_TTL_SECONDS
+        return
+
+    has_ffmpeg = bool(DEPENDENCIES["ffmpeg_ready"])
+    cmd += ["--no-playlist", "-o", out_template]
 
     if format_choice == "audio":
+        if not has_ffmpeg:
+            with jobs_lock:
+                if job_id in jobs:
+                    jobs[job_id]["status"] = "error"
+                    jobs[job_id]["error"] = "Missing dependency: ffmpeg is required for MP3 extraction."
+                    jobs[job_id]["updated_at"] = now_ts()
+                    jobs[job_id]["expires_at"] = now_ts() + JOB_TTL_SECONDS
+            return
         cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
-        cmd += ["-f", f"{format_id}+bestaudio/best", "--merge-output-format", "mp4"]
+        if has_ffmpeg:
+            # Prefer selected video format + explicit audio stream, then merge.
+            cmd += [
+                "-f",
+                f"{format_id}+bestaudio[acodec!=none]/best[acodec!=none]",
+                "--merge-output-format",
+                "mp4",
+            ]
+        else:
+            # Fallback without ffmpeg: force an audio-capable single stream.
+            # If selected format is video-only, yt-dlp will fallback to best stream with audio.
+            cmd += ["-f", f"{format_id}[acodec!=none]/best[ext=mp4][acodec!=none]/best[acodec!=none]/best"]
     else:
-        cmd += ["-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4"]
+        if has_ffmpeg:
+            cmd += [
+                "-f",
+                "bestvideo+bestaudio[acodec!=none]/best[acodec!=none]",
+                "--merge-output-format",
+                "mp4",
+            ]
+        else:
+            # Prefer mp4 with audio; fallback to any best stream that has audio.
+            cmd += ["-f", "best[ext=mp4][acodec!=none]/best[acodec!=none]/best"]
 
     cmd.append(url)
 
@@ -367,6 +540,10 @@ for _ in range(max(1, MAX_CONCURRENT_JOBS)):
     t.start()
     worker_threads.append(t)
 
+if ENABLE_BACKGROUND_CLEANUP:
+    cleanup_thread = threading.Thread(target=cleanup_worker_loop, daemon=True)
+    cleanup_thread.start()
+
 
 @app.route("/")
 @require_internal_access(api=False)
@@ -392,14 +569,25 @@ def index():
 @app.route("/health")
 def health():
     cleanup_jobs()
+    refresh_dependency_status()
     return jsonify({
-        "ok": True,
+        "ok": bool(DEPENDENCIES["yt_dlp_ready"]),
         "service": APP_SLUG,
         "name": APP_NAME,
         "version": APP_VERSION,
         "active_jobs": active_jobs_count(),
         "max_concurrent_jobs": MAX_CONCURRENT_JOBS,
         "job_ttl_seconds": JOB_TTL_SECONDS,
+        "download_file_ttl_seconds": DOWNLOAD_FILE_TTL_SECONDS,
+        "background_cleanup_enabled": ENABLE_BACKGROUND_CLEANUP,
+        "background_cleanup_interval_seconds": BACKGROUND_CLEANUP_INTERVAL_SECONDS,
+        "cleanup_daily_hour_utc": CLEANUP_DAILY_HOUR_UTC,
+        "dependencies": {
+            "yt_dlp_ready": DEPENDENCIES["yt_dlp_ready"],
+            "ffmpeg_ready": DEPENDENCIES["ffmpeg_ready"],
+            "auto_install_py_deps": AUTO_INSTALL_PY_DEPS,
+            "yt_dlp_cmd": DEPENDENCIES["yt_dlp_cmd"],
+        },
     })
 
 
@@ -422,6 +610,7 @@ def status():
 
 @app.route("/meta")
 def meta():
+    refresh_dependency_status()
     public_base_urls = dedupe_urls([PUBLIC_BASE_URL, ORIGIN_BASE_URL, *PUBLIC_BASE_URL_ALIASES])
     health_urls = dedupe_urls([PUBLIC_HEALTH_URL, ORIGIN_HEALTH_URL])
 
@@ -437,6 +626,10 @@ def meta():
         "health_urls": health_urls,
         "origin_health_url": ORIGIN_HEALTH_URL or None,
         "features": ["mp4", "mp3", "quality-picker", "bulk-download"],
+        "dependencies": {
+            "yt_dlp_ready": DEPENDENCIES["yt_dlp_ready"],
+            "ffmpeg_ready": DEPENDENCIES["ffmpeg_ready"],
+        },
     })
 
 
@@ -449,7 +642,11 @@ def get_info():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    cmd = ["yt-dlp", "--no-playlist", "-j", url]
+    cmd, dep_error = get_ytdlp_cmd_or_error(require_ffmpeg=False)
+    if dep_error:
+        return jsonify({"error": dep_error}), 503
+
+    cmd += ["--no-playlist", "-j", url]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
@@ -584,7 +781,26 @@ def resolve_bind_port():
 
 
 if __name__ == "__main__":
+    refresh_dependency_status()
+    cleanup_jobs()
+    cleanup_report = cleanup_download_dir()
     port = resolve_bind_port()
     host = os.environ.get("HOST", "0.0.0.0")
     print(f"[convertube] binding to {host}:{port}")
+    print(f"[convertube] startup cleanup: {json.dumps(cleanup_report)}")
+    print(
+        "[convertube] deps:",
+        json.dumps(
+            {
+                "yt_dlp_ready": DEPENDENCIES["yt_dlp_ready"],
+                "ffmpeg_ready": DEPENDENCIES["ffmpeg_ready"],
+                "yt_dlp_cmd": DEPENDENCIES["yt_dlp_cmd"],
+                "auto_install_py_deps": AUTO_INSTALL_PY_DEPS,
+                "download_file_ttl_seconds": DOWNLOAD_FILE_TTL_SECONDS,
+                "background_cleanup_enabled": ENABLE_BACKGROUND_CLEANUP,
+                "background_cleanup_interval_seconds": BACKGROUND_CLEANUP_INTERVAL_SECONDS,
+                "cleanup_daily_hour_utc": CLEANUP_DAILY_HOUR_UTC,
+            }
+        ),
+    )
     app.run(host=host, port=port)

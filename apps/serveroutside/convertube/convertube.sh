@@ -8,10 +8,6 @@ if ! command -v python3 &> /dev/null; then
     missing="$missing python3"
 fi
 
-if ! command -v yt-dlp &> /dev/null; then
-    missing="$missing yt-dlp"
-fi
-
 if ! command -v ffmpeg &> /dev/null; then
     missing="$missing ffmpeg"
 fi
@@ -32,11 +28,11 @@ fi
 if [ ! -d "venv" ]; then
     echo "Setting up virtual environment..."
     python3 -m venv venv
-    source venv/bin/activate
-    pip install -q flask yt-dlp
-else
-    source venv/bin/activate
 fi
+
+source venv/bin/activate
+python -m pip install --disable-pip-version-check -U pip
+python -m pip install --disable-pip-version-check -r requirements.txt
 
 PORT="${PORT:-8899}"
 export PORT

@@ -35,6 +35,13 @@ Or run from workspace root:
 pnpm convertube:dev
 ```
 
+For hosting bootstrap (auto install python deps + optional ffmpeg install):
+
+```bash
+cd apps/serveroutside/convertube
+./bootstrap-and-run.sh
+```
+
 Or with Docker:
 
 ```bash
@@ -61,11 +68,25 @@ PORT=8899
 MAX_CONCURRENT_JOBS=2
 MAX_QUEUE_SIZE=50
 JOB_TTL_SECONDS=3600
+DOWNLOAD_FILE_TTL_SECONDS=3600
 DOWNLOAD_TIMEOUT_SECONDS=300
 MAX_JOBS_MEMORY=200
+ENABLE_BACKGROUND_CLEANUP=true
+BACKGROUND_CLEANUP_INTERVAL_SECONDS=600
+# Optional daily cleanup trigger by UTC hour (0-23), -1 to disable.
+CLEANUP_DAILY_HOUR_UTC=-1
 
 # Optional metadata
 CONVERTUBE_VERSION=0.1.0
+
+# Auto-install missing Python deps (yt-dlp module) on startup
+CONVERTUBE_AUTO_INSTALL_PY_DEPS=true
+
+# Optional yt-dlp binary override
+YTDLP_BIN=
+
+# Used by bootstrap script to auto-install ffmpeg (if host allows apt/apk)
+CONVERTUBE_AUTO_INSTALL_SYSTEM_DEPS=false
 
 # Must match dashboard secret for launch token signing
 DASHBOARD_TOOL_SHARED_SECRET=change-me
@@ -89,6 +110,12 @@ CONVERTUBE_PUBLIC_BASE_URL_ALIASES=http://mbasic7.pikamc.vn:25914
 - `GET /health`
 - `GET /status`
 - `GET /meta`
+
+`/health` and `/meta` include dependency status (`yt_dlp_ready`, `ffmpeg_ready`) to help diagnostics.
+
+If `ffmpeg` is missing on low-cost hosting:
+- MP4 download still works via single-stream fallback (`best[ext=mp4]/best`).
+- MP3 extraction returns clear error (`ffmpeg is required for MP3 extraction`).
 
 ### Queue behavior
 

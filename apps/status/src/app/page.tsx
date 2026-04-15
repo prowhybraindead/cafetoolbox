@@ -367,7 +367,7 @@ export default async function StatusPage() {
               Dữ liệu này dùng để theo dõi lịch sử gián đoạn và tiến trình xử lý.
             </p>
 
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 max-h-[560px] space-y-4 overflow-y-auto pr-2">
               {incidents.length > 0 ? (
                 incidents.map((incident) => {
                   const incidentStatus = getIncidentStatusDisplay(incident.status);
