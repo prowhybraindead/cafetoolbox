@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 type OutputFormat = "video" | "audio";
 type CardStatus = "loading" | "ready" | "info-error";
 type DownloadStatus = "idle" | "queued" | "downloading" | "done" | "error";
+type DownloadPhase = "queued" | "downloading" | "processing" | "done" | "error";
 
 type VideoFormat = {
   id: string;
@@ -15,6 +16,9 @@ type VideoFormat = {
 
 type DownloadState = {
   status: DownloadStatus;
+  phase?: DownloadPhase;
+  progressPercent?: number;
+  progressText?: string;
   jobId?: string;
   filename?: string;
   queuePosition?: number | null;
@@ -78,6 +82,7 @@ export default function ConvertubeDashboardPage() {
   const [rawUrls, setRawUrls] = useState("");
   const [cards, setCards] = useState<DownloadCard[]>([]);
   const [isFetchingInfo, setIsFetchingInfo] = useState(false);
+  const [fetchProgress, setFetchProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const canFetch = useMemo(() => parseUrls(rawUrls).length > 0 && !isFetchingInfo, [rawUrls, isFetchingInfo]);
@@ -89,6 +94,7 @@ export default function ConvertubeDashboardPage() {
     }
 
     setIsFetchingInfo(true);
+    setFetchProgress({ done: 0, total: urls.length });
     setCards([]);
 
     const nextCards: DownloadCard[] = urls.map((url) => ({
@@ -160,6 +166,7 @@ export default function ConvertubeDashboardPage() {
           )
         );
       }
+      setFetchProgress((prev) => ({ ...prev, done: prev.done + 1 }));
     }
 
     setIsFetchingInfo(false);
@@ -171,6 +178,9 @@ export default function ConvertubeDashboardPage() {
         const response = await fetch(`/api/tools/convertube/status/${encodeURIComponent(jobId)}`);
         const payload = (await response.json().catch(() => ({}))) as {
           status?: DownloadStatus;
+          phase?: DownloadPhase;
+          progress_percent?: number;
+          progress_text?: string;
           error?: string;
           filename?: string;
           queue_position?: number | null;
@@ -188,6 +198,7 @@ export default function ConvertubeDashboardPage() {
                       [targetFormat]: {
                         ...card.downloads[targetFormat],
                         status: "error",
+                        phase: "error",
                         error: mapFriendlyError(payload.error || "Không thể đọc trạng thái job."),
                       },
                     },
@@ -210,6 +221,9 @@ export default function ConvertubeDashboardPage() {
                       [targetFormat]: {
                         ...card.downloads[targetFormat],
                         status: "done",
+                        phase: "done",
+                        progressPercent: 100,
+                        progressText: payload.progress_text || "Hoàn tất.",
                         filename: payload.filename,
                         queuePosition: null,
                         error: "",
@@ -234,6 +248,8 @@ export default function ConvertubeDashboardPage() {
                       [targetFormat]: {
                         ...card.downloads[targetFormat],
                         status: "error",
+                        phase: "error",
+                        progressText: payload.progress_text || "",
                         error: mapFriendlyError(payload.error || "Download thất bại."),
                         queuePosition: null,
                       },
@@ -256,6 +272,9 @@ export default function ConvertubeDashboardPage() {
                       [targetFormat]: {
                         ...card.downloads[targetFormat],
                         status: "queued",
+                        phase: payload.phase || "queued",
+                        progressPercent: payload.progress_percent ?? 0,
+                        progressText: payload.progress_text || "Đang chờ trong hàng đợi...",
                         queuePosition: payload.queue_position ?? null,
                       },
                     },
@@ -277,6 +296,9 @@ export default function ConvertubeDashboardPage() {
                       [targetFormat]: {
                         ...card.downloads[targetFormat],
                         status: "downloading",
+                        phase: payload.phase || "downloading",
+                        progressPercent: payload.progress_percent ?? 0,
+                        progressText: payload.progress_text || "Đang tải...",
                         queuePosition: null,
                       },
                     },
@@ -346,6 +368,9 @@ export default function ConvertubeDashboardPage() {
       const payload = (await response.json().catch(() => ({}))) as {
         job_id?: string;
         status?: DownloadStatus;
+        phase?: DownloadPhase;
+        progress_percent?: number;
+        progress_text?: string;
         queue_position?: number | null;
         error?: string;
       };
@@ -361,6 +386,7 @@ export default function ConvertubeDashboardPage() {
                     [targetFormat]: {
                       ...item.downloads[targetFormat],
                       status: "error",
+                      phase: "error",
                       error: mapFriendlyError(payload.error || "Không thể bắt đầu download."),
                     },
                   },
@@ -382,6 +408,11 @@ export default function ConvertubeDashboardPage() {
                     ...item.downloads[targetFormat],
                     jobId: payload.job_id,
                     status: payload.status === "queued" ? "queued" : "downloading",
+                    phase: payload.phase || (payload.status === "queued" ? "queued" : "downloading"),
+                    progressPercent: payload.progress_percent ?? 0,
+                    progressText:
+                      payload.progress_text ||
+                      (payload.status === "queued" ? "Đang chờ trong hàng đợi..." : "Đang tải..."),
                     queuePosition: payload.queue_position ?? null,
                     error: "",
                   },
@@ -496,6 +527,22 @@ export default function ConvertubeDashboardPage() {
             {isFetchingInfo ? "Đang đọc thông tin..." : "Lấy thông tin video"}
           </button>
         </div>
+        {isFetchingInfo && fetchProgress.total > 0 ? (
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-xs text-charcoalMuted mb-1">
+              <span>Đang lấy thông tin video</span>
+              <span>
+                {fetchProgress.done}/{fetchProgress.total}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-borderLight overflow-hidden">
+              <div
+                className="h-full bg-neon transition-all duration-300"
+                style={{ width: `${Math.max(5, (fetchProgress.done / fetchProgress.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
       </section>
 
       {hasMoreThanOneReady ? (
@@ -520,6 +567,7 @@ export default function ConvertubeDashboardPage() {
       <div className="space-y-3">
         {cards.map((card) => {
           const currentDownload = card.downloads[format];
+          const progressPercent = Math.max(0, Math.min(100, currentDownload.progressPercent ?? 0));
           const isAudio = format === "audio";
           const statusText =
             card.status === "loading"
@@ -639,6 +687,35 @@ export default function ConvertubeDashboardPage() {
                       {statusText}
                     </span>
                   </div>
+
+                  {card.status === "ready" &&
+                  (currentDownload.status === "downloading" || currentDownload.status === "queued") ? (
+                    <div className="mt-3">
+                      {currentDownload.phase === "processing" ? (
+                        <>
+                          <div className="text-xs text-charcoalMuted mb-1">
+                            {currentDownload.progressText || "Đang xử lý và chuyển đổi..."}
+                          </div>
+                          <div className="h-2 rounded-full bg-borderLight overflow-hidden">
+                            <div className="h-full bg-neon animate-pulse" style={{ width: "100%" }} />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-xs text-charcoalMuted mb-1">
+                            <span>{currentDownload.progressText || "Đang tải dữ liệu..."}</span>
+                            <span>{progressPercent.toFixed(1)}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-borderLight overflow-hidden">
+                            <div
+                              className="h-full bg-charcoal transition-all duration-300"
+                              style={{ width: `${Math.max(2, progressPercent)}%` }}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
 
                   {(card.status === "info-error" && card.error) || currentDownload.error ? (
                     <p className="text-sm text-red-600 mt-2">

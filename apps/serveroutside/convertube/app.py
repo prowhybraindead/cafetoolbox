@@ -12,6 +12,7 @@ import datetime
 import shutil
 import sys
 import importlib.util
+import re
 from collections import deque
 from functools import wraps
 from flask import Flask, request, jsonify, send_file, render_template, redirect, make_response
@@ -90,6 +91,7 @@ DEPENDENCIES = {
     "yt_dlp_ready": False,
     "ffmpeg_ready": False,
 }
+PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)%")
 
 
 def dedupe_urls(urls):
@@ -385,6 +387,24 @@ def cleanup_worker_loop():
             print(f"[convertube] daily cleanup error: {exc}")
 
 
+def update_job_progress(job_id, phase=None, progress_percent=None, progress_text=None):
+    with jobs_lock:
+        job = jobs.get(job_id)
+        if not job:
+            return
+        if phase is not None:
+            job["phase"] = phase
+        if progress_percent is not None:
+            try:
+                value = float(progress_percent)
+                job["progress_percent"] = max(0.0, min(100.0, value))
+            except (TypeError, ValueError):
+                pass
+        if progress_text is not None:
+            job["progress_text"] = progress_text[:200]
+        job["updated_at"] = now_ts()
+
+
 def run_download(job_id):
     with jobs_lock:
         job = jobs.get(job_id)
@@ -422,12 +442,19 @@ def run_download(job_id):
         cmd += ["-x", "--audio-format", "mp3"]
     elif format_id:
         if has_ffmpeg:
-            # Prefer selected video format + explicit audio stream, then merge.
+            # Prefer selected video format + m4a/mp4a audio for broad MP4 compatibility.
             cmd += [
                 "-f",
-                f"{format_id}+bestaudio[acodec!=none]/best[acodec!=none]",
+                (
+                    f"{format_id}+bestaudio[ext=m4a]/"
+                    f"{format_id}+bestaudio[acodec*=mp4a]/"
+                    f"{format_id}+bestaudio[acodec!=none]/"
+                    "best[ext=mp4][acodec!=none]/best[acodec!=none]"
+                ),
                 "--merge-output-format",
                 "mp4",
+                "--postprocessor-args",
+                "Merger:-c:a aac -b:a 192k",
             ]
         else:
             # Fallback without ffmpeg: force an audio-capable single stream.
@@ -437,23 +464,94 @@ def run_download(job_id):
         if has_ffmpeg:
             cmd += [
                 "-f",
-                "bestvideo+bestaudio[acodec!=none]/best[acodec!=none]",
+                (
+                    "bestvideo+bestaudio[ext=m4a]/"
+                    "bestvideo+bestaudio[acodec*=mp4a]/"
+                    "bestvideo+bestaudio[acodec!=none]/"
+                    "best[ext=mp4][acodec!=none]/best[acodec!=none]"
+                ),
                 "--merge-output-format",
                 "mp4",
+                "--postprocessor-args",
+                "Merger:-c:a aac -b:a 192k",
             ]
         else:
             # Prefer mp4 with audio; fallback to any best stream that has audio.
             cmd += ["-f", "best[ext=mp4][acodec!=none]/best[acodec!=none]/best"]
 
+    cmd += ["--newline", "--progress"]
     cmd.append(url)
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=DOWNLOAD_TIMEOUT_SECONDS)
-        if result.returncode != 0:
+        update_job_progress(job_id, phase="downloading", progress_percent=0, progress_text="Đang chuẩn bị tải...")
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            errors="replace",
+        )
+
+        deadline = time.time() + DOWNLOAD_TIMEOUT_SECONDS
+        output_lines = []
+
+        while True:
+            if time.time() > deadline:
+                process.kill()
+                raise subprocess.TimeoutExpired(cmd, DOWNLOAD_TIMEOUT_SECONDS)
+
+            line = process.stdout.readline() if process.stdout else ""
+            if line:
+                stripped = line.strip()
+                output_lines.append(stripped)
+
+                # Download progress lines
+                if "[download]" in stripped:
+                    percent_match = PERCENT_RE.search(stripped)
+                    if percent_match:
+                        update_job_progress(
+                            job_id,
+                            phase="downloading",
+                            progress_percent=float(percent_match.group(1)),
+                            progress_text="Đang tải dữ liệu video...",
+                        )
+                    else:
+                        update_job_progress(job_id, phase="downloading", progress_text="Đang tải dữ liệu video...")
+                    continue
+
+                # Post-processing / merging / converting phase
+                if (
+                    "Merging formats into" in stripped
+                    or "[ExtractAudio]" in stripped
+                    or "Post-process" in stripped
+                    or "ffmpeg" in stripped.lower()
+                ):
+                    update_job_progress(
+                        job_id,
+                        phase="processing",
+                        progress_percent=100,
+                        progress_text="Đang xử lý và đóng gói file...",
+                    )
+                    continue
+
+            if process.poll() is not None:
+                break
+
+            time.sleep(0.05)
+
+        return_code = process.wait(timeout=5)
+        if return_code != 0:
+            last_line = ""
+            for candidate in reversed(output_lines):
+                if candidate:
+                    last_line = candidate
+                    break
+            error_text = last_line or "Download failed"
             with jobs_lock:
                 if job_id in jobs:
                     jobs[job_id]["status"] = "error"
-                    jobs[job_id]["error"] = result.stderr.strip().split("\n")[-1]
+                    jobs[job_id]["error"] = error_text
                     jobs[job_id]["updated_at"] = now_ts()
                     jobs[job_id]["expires_at"] = now_ts() + JOB_TTL_SECONDS
             return
@@ -495,6 +593,9 @@ def run_download(job_id):
         with jobs_lock:
             if job_id in jobs:
                 jobs[job_id]["status"] = "done"
+                jobs[job_id]["phase"] = "done"
+                jobs[job_id]["progress_percent"] = 100
+                jobs[job_id]["progress_text"] = "Hoàn tất."
                 jobs[job_id]["file"] = chosen
                 jobs[job_id]["filename"] = filename
                 jobs[job_id]["updated_at"] = now_ts()
@@ -503,6 +604,7 @@ def run_download(job_id):
         with jobs_lock:
             if job_id in jobs:
                 jobs[job_id]["status"] = "error"
+                jobs[job_id]["phase"] = "error"
                 jobs[job_id]["error"] = "Download timed out"
                 jobs[job_id]["updated_at"] = now_ts()
                 jobs[job_id]["expires_at"] = now_ts() + JOB_TTL_SECONDS
@@ -510,6 +612,7 @@ def run_download(job_id):
         with jobs_lock:
             if job_id in jobs:
                 jobs[job_id]["status"] = "error"
+                jobs[job_id]["phase"] = "error"
                 jobs[job_id]["error"] = str(e)
                 jobs[job_id]["updated_at"] = now_ts()
                 jobs[job_id]["expires_at"] = now_ts() + JOB_TTL_SECONDS
@@ -528,6 +631,9 @@ def queue_worker_loop():
                 continue
 
             job["status"] = "downloading"
+            job["phase"] = "downloading"
+            job["progress_percent"] = 0
+            job["progress_text"] = "Đang chờ xử lý..."
             job["updated_at"] = now_ts()
             job["started_at"] = now_ts()
 
@@ -712,6 +818,9 @@ def start_download():
     with queue_condition:
         jobs[job_id] = {
             "status": "queued",
+            "phase": "queued",
+            "progress_percent": 0,
+            "progress_text": "Đang chờ trong hàng đợi...",
             "url": url,
             "format": format_choice,
             "format_id": format_id,
@@ -743,6 +852,9 @@ def check_status(job_id):
     queue_position = queue_position_of(job_id) if job.get("status") == "queued" else None
     return jsonify({
         "status": job["status"],
+        "phase": job.get("phase", job["status"]),
+        "progress_percent": job.get("progress_percent", 0),
+        "progress_text": job.get("progress_text", ""),
         "error": job.get("error"),
         "filename": job.get("filename"),
         "queue_position": queue_position,
