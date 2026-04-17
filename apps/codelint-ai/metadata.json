@@ -1,0 +1,5 @@
+{
+  "name": "CodeLint AI Kernel",
+  "description": "Deep source code analysis and refactoring system powered by Gemini AI.",
+  "requestFramePermissions": []
+}
