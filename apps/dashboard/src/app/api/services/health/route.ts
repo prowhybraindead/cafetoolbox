@@ -19,7 +19,15 @@ type ServiceWithHealth = {
   updated_at: string;
 };
 
-export async function GET(request: Request) {
+type ServiceHealthRpcRow = {
+  is_healthy: boolean;
+  uptime_24h: number | null;
+  last_checked_at: string | null;
+  last_response_time_ms: number | null;
+  consecutive_failures: number | null;
+};
+
+export async function GET(_request: Request) {
   try {
     const supabase = await createServerClient();
 
@@ -51,13 +59,21 @@ export async function GET(request: Request) {
         })
         .single();
 
+      const currentStatus: ServiceWithHealth["status"] =
+        service.status === "operational" ||
+        service.status === "degraded" ||
+        service.status === "partial_outage" ||
+        service.status === "major_outage"
+          ? service.status
+          : "degraded";
+
       if (healthError) {
         console.warn(`[services-health] Error getting health for ${service.id}:`, healthError);
         // Fallback: assume operational with 100% uptime if no heartbeat data
         servicesWithHealth.push({
           id: service.id,
           name: service.name,
-          status: service.status as any,
+          status: currentStatus,
           uptime_24h: 100.0,
           is_healthy: service.status === "operational",
           last_checked_at: new Date().toISOString(),
@@ -67,16 +83,16 @@ export async function GET(request: Request) {
         });
       } else {
         // Map RPC result to our type
-        const health = healthData as any;
+        const health = healthData as ServiceHealthRpcRow | null;
         servicesWithHealth.push({
           id: service.id,
           name: service.name,
-          status: health.is_healthy ? "operational" : "degraded",
-          uptime_24h: Number(health.uptime_24h || 100.0),
-          is_healthy: health.is_healthy,
-          last_checked_at: health.last_checked_at,
-          response_time_ms: health.last_response_time_ms,
-          consecutive_failures: health.consecutive_failures || 0,
+          status: health?.is_healthy ? "operational" : "degraded",
+          uptime_24h: Number(health?.uptime_24h || 100.0),
+          is_healthy: health?.is_healthy ?? false,
+          last_checked_at: health?.last_checked_at ?? new Date().toISOString(),
+          response_time_ms: health?.last_response_time_ms ?? null,
+          consecutive_failures: health?.consecutive_failures || 0,
           updated_at: service.updated_at,
         });
       }

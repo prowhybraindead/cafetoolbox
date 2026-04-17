@@ -11,6 +11,9 @@ importers:
       dotenv:
         specifier: ^17.4.1
         version: 17.4.1
+      eslint:
+        specifier: ^9.39.4
+        version: 9.39.4(jiti@2.6.1)
       prettier:
         specifier: ^3.5.0
         version: 3.8.2

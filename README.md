@@ -18,7 +18,7 @@ CafeToolbox is a monorepo platform with a private admin dashboard, a public stat
   - All timestamps normalised to UTC with explicit suffix
   - Multi-timezone clock wall (Vercel EST/EDT, UTC+0, VN UTC+7) updating in real time
   - Service response times and last check timestamps displayed
-- Supabase database/RLS is consolidated under unified migration `0011`.
+- Supabase schema in this repo is tracked by incremental monitoring migrations `0014` -> `0018` (baseline schema assumed pre-existing).
 - Health monitoring infrastructure ready:
   - Heartbeat tables, RLS policies, and RPC functions deployed
   - Health check worker script included (manual or Cron-based execution)
@@ -33,6 +33,7 @@ CafeToolbox is a monorepo platform with a private admin dashboard, a public stat
 ```text
 CafeToolbox/
    apps/
+      serveroutside/
       dashboard/
       status/
    packages/
@@ -65,6 +66,11 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 AUTH_COOKIE_DOMAIN=localhost
+
+# Convertube split (dashboard proxy -> python backend)
+DASHBOARD_TOOL_SHARED_SECRET=...
+DASHBOARD_TOOL_TOKEN_TTL_SECONDS=300
+CONVERTUBE_API_BASE_URL=http://localhost:25914
 ```
 
 Production cookie domain target:
@@ -93,6 +99,7 @@ Useful commands:
 - `pnpm run lint`
 - `pnpm run format`
 - `pnpm run type-check`
+- `pnpm convertube:dev` (run Convertube backend from `apps/serveroutside/convertube`)
 
 ## Dashboard Routes
 
@@ -109,21 +116,31 @@ Protected routes:
 
 - `/dashboard`
 - `/dashboard/tools`
+- `/tools/convertube`
 - `/dashboard/settings`
 - `/admin`
 - `/admin/users`
 - `/admin/tools`
 - `/admin/categories`
 
+Convertube dashboard proxy routes:
+
+- `POST /api/tools/convertube/info`
+- `POST /api/tools/convertube/download`
+- `GET /api/tools/convertube/status/[jobId]`
+- `GET /api/tools/convertube/file/[jobId]`
+
 ## Database And Migration Workflow
 
 Use unified path + new monitoring migrations.
 
-Primary migrations (apply in order):
+Primary migrations present in this repository (apply in order):
 
-1. `packages/supabase/migrations/0011_rebuild_schema_and_rls_unified.sql` - Core schema
-2. `packages/supabase/migrations/0012_add_heartbeat_monitoring.sql` - Health monitoring tables
-3. `packages/supabase/migrations/0013_seed_health_check_config.sql` - Default configs
+1. `packages/supabase/migrations/0014_add_service_uptime_daily.sql` - Daily uptime rollups
+2. `packages/supabase/migrations/0015_monitoring_correctness_hardening.sql` - Monitoring correctness hardening
+3. `packages/supabase/migrations/0016_add_worker_heartbeats.sql` - Worker self-heartbeat table
+4. `packages/supabase/migrations/0017_seed_convertube_service.sql` - Convertube seed + health config
+5. `packages/supabase/migrations/0018_fix_convertube_tool_path.sql` - Force Convertube `tools.path` to `/tools/convertube`
 
 Runbook:
 

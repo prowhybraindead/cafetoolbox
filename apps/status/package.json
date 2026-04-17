@@ -8,7 +8,7 @@
     "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start --port 3001",
-    "lint": "next lint",
+    "lint": "node -e \"process.env.ESLINT_USE_FLAT_CONFIG='false'; const r=require('node:child_process').spawnSync('eslint',['src','--ext','.ts,.tsx'],{stdio:'inherit',shell:true}); process.exit(r.status ?? 1);\"",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf .next node_modules"

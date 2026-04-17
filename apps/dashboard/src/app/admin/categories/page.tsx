@@ -176,7 +176,7 @@ export default function AdminCategoriesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-charcoal">Quản lý Danh mục</h1>
-          <p className="text-sm text-charcoalMuted mt-1">Tạo, sửa, xóa nhóm phân loại công cụ</p>
+          <p className="text-sm text-charcoal mt-1">Tạo, sửa, xóa nhóm phân loại công cụ</p>
         </div>
         <button
           onClick={startCreate}
@@ -210,7 +210,7 @@ export default function AdminCategoriesPage() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => resetForm()}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-light-card rounded-xl p-6 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-semibold text-charcoal mb-5">
               {editingId ? 'Chỉnh sửa danh mục' : 'Tạo danh mục mới'}
             </h2>
@@ -223,7 +223,7 @@ export default function AdminCategoriesPage() {
                     onChange={(e) => setFormSlug(e.target.value)}
                     placeholder="code, design, text..."
                     required
-                    className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                    className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                   />
                 </div>
                 <div>
@@ -233,7 +233,7 @@ export default function AdminCategoriesPage() {
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Chuyên Code"
                     required
-                    className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                    className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                   />
                 </div>
               </div>
@@ -244,7 +244,7 @@ export default function AdminCategoriesPage() {
                   onChange={(e) => setFormDescription(e.target.value)}
                   placeholder="Mô tả ngắn về danh mục này"
                   rows={2}
-                  className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                  className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -254,7 +254,7 @@ export default function AdminCategoriesPage() {
                     value={formIcon}
                     onChange={(e) => setFormIcon(e.target.value)}
                     placeholder="lucide:code-2"
-                    className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                    className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                   />
                 </div>
                 <div>
@@ -264,7 +264,7 @@ export default function AdminCategoriesPage() {
                     value={formSortOrder}
                     onChange={(e) => setFormSortOrder(Number(e.target.value))}
                     min={0}
-                    className="w-full px-3 py-2 border border-borderMain rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
+                    className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                   />
                 </div>
               </div>
@@ -292,12 +292,12 @@ export default function AdminCategoriesPage() {
       {/* Delete Confirmation */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDeleteId(null)}>
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="glass-light-card rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="iconify text-red-500" data-icon="lucide:trash-2" data-width="24" />
             </div>
             <h3 className="text-lg font-semibold text-charcoal text-center mb-2">Xóa danh mục?</h3>
-            <p className="text-sm text-charcoalMuted text-center mb-6">Hành động này không thể hoàn tác.</p>
+            <p className="text-sm text-charcoal text-center mb-6">Hành động này không thể hoàn tác.</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteId(null)}
@@ -318,23 +318,23 @@ export default function AdminCategoriesPage() {
 
       {/* Categories Table */}
       {categories.length === 0 ? (
-        <div className="bg-white border border-borderMain rounded-xl p-12 text-center">
+        <div className="glass-light-card rounded-xl p-12 text-center">
           <div className="w-16 h-16 bg-borderLight rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="iconify text-charcoalMuted" data-icon="lucide:folder" data-width="32" />
+            <span className="iconify text-charcoal" data-icon="lucide:folder" data-width="32" />
           </div>
           <h3 className="text-lg font-semibold text-charcoal mb-2">Chưa có danh mục</h3>
-          <p className="text-sm text-charcoalMuted">Tạo danh mục đầu tiên để phân loại công cụ.</p>
+          <p className="text-sm text-charcoal">Tạo danh mục đầu tiên để phân loại công cụ.</p>
         </div>
       ) : (
-        <div className="bg-white border border-borderMain rounded-xl overflow-hidden">
+        <div className="glass-light-card rounded-xl overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-borderMain bg-cream/50">
-                <th className="text-left px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Danh mục</th>
-                <th className="text-left px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Slug</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Công cụ</th>
-                <th className="text-center px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Thứ tự</th>
-                <th className="text-right px-5 py-3 text-xs font-medium text-charcoalMuted uppercase tracking-wider">Thao tác</th>
+              <tr className="border-b border-borderMain bg-white/45">
+                <th className="text-left px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Danh mục</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Slug</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Công cụ</th>
+                <th className="text-center px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Thứ tự</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-charcoal uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -348,13 +348,13 @@ export default function AdminCategoriesPage() {
                       <div>
                         <p className="text-sm font-medium text-charcoal">{cat.name}</p>
                         {cat.description && (
-                          <p className="text-xs text-charcoalMuted truncate max-w-[200px]">{cat.description}</p>
+                          <p className="text-xs text-charcoal truncate max-w-[200px]">{cat.description}</p>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-4">
-                    <code className="text-xs bg-cream px-2 py-1 rounded text-charcoalMuted font-mono">/{cat.slug}</code>
+                    <code className="text-xs bg-white/50 px-2 py-1 rounded text-charcoal font-mono">/{cat.slug}</code>
                   </td>
                   <td className="px-5 py-4 text-center">
                     <span className="text-xs bg-neonGhost text-neon px-2 py-0.5 rounded-full font-medium">
@@ -362,7 +362,7 @@ export default function AdminCategoriesPage() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-center">
-                    <span className="text-sm text-charcoalMuted">{cat.sort_order}</span>
+                    <span className="text-sm text-charcoal">{cat.sort_order}</span>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">

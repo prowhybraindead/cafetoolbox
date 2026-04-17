@@ -25,7 +25,7 @@ console.log('✅ Environment variables configured correctly!\n');
 console.log('📝 Next_steps:');
 console.log('  1. Run SQL migrations in Supabase Dashboard');
 console.log('  2. Go to: packages/supabase/migrations/');
-console.log('  3. Run files in order: 0001 -> 0002 -> 0003');
+console.log('  3. Apply migrations that exist in this repo (currently 0014 -> 0018)');
 console.log('  4. Check Table Editor to verify tables created\n');
 
 console.log('🎉 Configuration check complete!\n');

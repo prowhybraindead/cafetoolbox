@@ -9,15 +9,17 @@
     "format": "turbo format",
     "clean": "turbo clean",
     "type-check": "turbo type-check",
-    "monitoring:start": "node apps/monitoring/main.mjs",
-    "monitoring:worker": "node apps/monitoring/worker.mjs",
-    "monitoring:once": "node apps/monitoring/worker.mjs --once",
-    "monitoring:aggregate-daily": "node apps/monitoring/aggregate-uptime-daily.mjs",
-    "monitoring:watchdog": "node apps/monitoring/watchdog.mjs",
-    "monitoring:watchdog:once": "node apps/monitoring/watchdog.mjs --once"
+    "monitoring:start": "node apps/monitoring/main.js",
+    "monitoring:worker": "node apps/monitoring/worker.js",
+    "monitoring:once": "node apps/monitoring/worker.js --once",
+    "monitoring:aggregate-daily": "node apps/monitoring/aggregate-uptime-daily.js",
+    "monitoring:watchdog": "node apps/monitoring/watchdog.js",
+    "monitoring:watchdog:once": "node apps/monitoring/watchdog.js --once",
+    "convertube:dev": "python apps/serveroutside/convertube/app.py"
   },
   "devDependencies": {
     "dotenv": "^17.4.1",
+    "eslint": "^9.39.4",
     "prettier": "^3.5.0",
     "turbo": "^2.5.0"
   },

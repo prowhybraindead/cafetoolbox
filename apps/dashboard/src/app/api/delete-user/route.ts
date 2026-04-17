@@ -50,10 +50,11 @@ export async function POST(request: Request) {
       message: 'Đã xóa user thành công',
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Có lỗi xảy ra';
     console.error('Error in delete-user API:', error);
     return NextResponse.json(
-      { error: error.message || 'Có lỗi xảy ra' },
+      { error: message },
       { status: 500 }
     );
   }

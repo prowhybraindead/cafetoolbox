@@ -11,6 +11,24 @@ type ServiceConfig = {
   timeout_ms: number;
 };
 
+type HealthCheckResult = {
+  is_healthy: boolean;
+  response_time_ms: number | null;
+  http_status: number | null;
+  error_message: string | null;
+};
+
+type CronResult =
+  | {
+      service_id: string;
+      status: "recorded";
+      is_healthy: boolean;
+      response_time_ms: number | null;
+      http_status: number | null;
+    }
+  | { service_id: string; status: "failed_to_record" }
+  | { service_id: string; status: "error"; error: string };
+
 /**
  * Perform HTTP health check on a URL
  * Measures response time and returns status
@@ -18,16 +36,25 @@ type ServiceConfig = {
 async function performHealthCheck(
   url: string,
   timeoutMs: number = 5000
-): Promise<{
-  is_healthy: boolean;
-  response_time_ms: number | null;
-  http_status: number | null;
-  error_message: string | null;
-}> {
+): Promise<HealthCheckResult> {
   return new Promise((resolve) => {
     const startTime = Date.now();
+    let settled = false;
+    let request: ReturnType<typeof http.request> | null = null;
+    const finish = (result: {
+      is_healthy: boolean;
+      response_time_ms: number | null;
+      http_status: number | null;
+      error_message: string | null;
+    }) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
     const timeout = setTimeout(() => {
-      resolve({
+      request?.destroy(new Error(`Timeout after ${timeoutMs}ms`));
+      finish({
         is_healthy: false,
         response_time_ms: null,
         http_status: null,
@@ -38,12 +65,12 @@ async function performHealthCheck(
     const isHttps = url.startsWith("https");
     const client = isHttps ? https : http;
 
-    const request = client.request(url, { method: "GET" }, (res) => {
+    request = client.request(url, { method: "GET" }, (res) => {
       clearTimeout(timeout);
       const responseTime = Date.now() - startTime;
       const isHealthy = res.statusCode! >= 200 && res.statusCode! < 400;
 
-      resolve({
+      finish({
         is_healthy: isHealthy,
         response_time_ms: responseTime,
         http_status: res.statusCode || null,
@@ -56,7 +83,7 @@ async function performHealthCheck(
 
     request.on("error", (error) => {
       clearTimeout(timeout);
-      resolve({
+      finish({
         is_healthy: false,
         response_time_ms: null,
         http_status: null,
@@ -73,7 +100,7 @@ async function performHealthCheck(
  */
 async function recordHeartbeat(
   serviceId: string,
-  healthData: any
+  healthData: HealthCheckResult
 ): Promise<boolean> {
   // Determine base URL - use VERCEL_URL if available (production), else localhost
   const baseUrl = process.env.VERCEL_URL
@@ -87,6 +114,13 @@ async function recordHeartbeat(
 
   return new Promise((resolve) => {
     const url = new URL(`${baseUrl}/api/health-check`);
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+
     const options = {
       hostname: url.hostname,
       port: url.port || (url.protocol === "https:" ? 443 : 80),
@@ -102,17 +136,25 @@ async function recordHeartbeat(
     const isHttps = url.protocol === "https:";
     const client = isHttps ? https : http;
 
-    const request = client.request(options, (res) => {
+    let request: ReturnType<typeof http.request> | null = null;
+    const timeout = setTimeout(() => {
+      request?.destroy(new Error("Record heartbeat timeout"));
+      finish(false);
+    }, 8000);
+
+    request = client.request(options, (res) => {
+      clearTimeout(timeout);
       const statusOk = res.statusCode! >= 200 && res.statusCode! < 300;
-      resolve(statusOk);
+      finish(statusOk);
 
       // Consume response
       res.on("data", () => {});
     });
 
     request.on("error", (error) => {
+      clearTimeout(timeout);
       console.error("[cron] Record heartbeat error:", error.message);
-      resolve(false);
+      finish(false);
     });
 
     request.write(payload);
@@ -164,7 +206,7 @@ export async function GET(request: Request) {
 
     let successCount = 0;
     let failureCount = 0;
-    const results: any[] = [];
+    const results: CronResult[] = [];
 
     // Process each service health check
     for (const config of configs) {

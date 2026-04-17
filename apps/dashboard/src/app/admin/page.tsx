@@ -81,7 +81,7 @@ export default async function AdminPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-charcoal">Admin Panel</h1>
-        <p className="text-sm text-charcoalMuted mt-1">Quản lý toàn bộ hệ thống CafeToolbox</p>
+        <p className="text-sm text-charcoal mt-1">Quản lý toàn bộ hệ thống CafeToolbox</p>
       </div>
 
       {/* Stats Grid */}
@@ -90,11 +90,11 @@ export default async function AdminPage() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="bg-white border border-borderMain rounded-xl p-6 hover:border-neon/50 transition-colors group"
+            className="glass-light-card rounded-xl p-6 hover:border-neon/50 transition-colors group"
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-charcoalMuted">{stat.label}</p>
+                <p className="text-sm text-charcoal">{stat.label}</p>
                 <p className="text-3xl font-bold text-charcoal mt-1">{stat.count}</p>
               </div>
               <div className={`w-12 h-12 ${stat.color} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform`}>
@@ -106,43 +106,43 @@ export default async function AdminPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white border border-borderMain rounded-xl p-6">
+      <div className="glass-light-card rounded-xl p-6">
         <h2 className="text-lg font-semibold text-charcoal mb-4">Thao tác nhanh</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <Link
             href="/admin/categories"
-            className="flex items-center gap-3 p-4 rounded-lg border border-borderMain hover:border-neon/50 transition-colors"
+            className="glass-light-soft flex items-center gap-3 p-4 rounded-lg hover:border-neon/50 transition-colors"
           >
             <div className="w-9 h-9 rounded-lg bg-charcoal text-neon flex items-center justify-center">
               <PlusIcon className="h-4 w-4" />
             </div>
             <div>
               <p className="text-sm font-medium text-charcoal">Thêm danh mục mới</p>
-              <p className="text-xs text-charcoalMuted">Tạo nhóm phân loại công cụ</p>
+              <p className="text-xs text-charcoal">Tạo nhóm phân loại công cụ</p>
             </div>
           </Link>
           <Link
             href="/admin/tools"
-            className="flex items-center gap-3 p-4 rounded-lg border border-borderMain hover:border-neon/50 transition-colors"
+            className="glass-light-soft flex items-center gap-3 p-4 rounded-lg hover:border-neon/50 transition-colors"
           >
             <div className="w-9 h-9 rounded-lg bg-charcoal text-neon flex items-center justify-center">
               <PlusIcon className="h-4 w-4" />
             </div>
             <div>
               <p className="text-sm font-medium text-charcoal">Thêm công cụ mới</p>
-              <p className="text-xs text-charcoalMuted">Đăng ký công cụ vào hệ thống</p>
+              <p className="text-xs text-charcoal">Đăng ký công cụ vào hệ thống</p>
             </div>
           </Link>
           <Link
             href="/admin/users"
-            className="flex items-center gap-3 p-4 rounded-lg border border-borderMain hover:border-neon/50 transition-colors"
+            className="glass-light-soft flex items-center gap-3 p-4 rounded-lg hover:border-neon/50 transition-colors"
           >
             <div className="w-9 h-9 rounded-lg bg-charcoal text-neon flex items-center justify-center">
               <UsersIcon className="h-4 w-4" />
             </div>
             <div>
               <p className="text-sm font-medium text-charcoal">Quản lý người dùng</p>
-              <p className="text-xs text-charcoalMuted">Xem và phân quyền user</p>
+              <p className="text-xs text-charcoal">Xem và phân quyền user</p>
             </div>
           </Link>
         </div>

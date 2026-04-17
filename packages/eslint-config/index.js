@@ -14,7 +14,7 @@ module.exports = {
     "plugin:react/recommended",
     "plugin:react-hooks/recommended",
   ],
-  plugins: ["only-warn", "@typescript-eslint", "react", "react-hooks"],
+  plugins: ["@typescript-eslint", "react", "react-hooks"],
   parser: "@typescript-eslint/parser",
   parserOptions: {
     project,

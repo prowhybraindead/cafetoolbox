@@ -27,6 +27,27 @@ See [RULES.md](RULES.md#5-versioning-rules) for complete versioning rules.
 
 ---
 
+## [0.4.13-beta] - 2026-04-15
+
+- Completed Convertube split milestone for dashboard-side integration:
+  - Added frontend route: `/tools/convertube` with in-dashboard URL parsing, format mode switch (MP4/MP3), quality selection, queue/status polling, and file download flow.
+  - Added server-side proxy API routes in dashboard:
+    - `POST /api/tools/convertube/info`
+    - `POST /api/tools/convertube/download`
+    - `GET /api/tools/convertube/status/[jobId]`
+    - `GET /api/tools/convertube/file/[jobId]`
+  - Proxy routes now enforce dashboard session auth and sign short-lived tool access token with `DASHBOARD_TOOL_SHARED_SECRET`, keeping secrets server-side.
+  - Added `CONVERTUBE_API_BASE_URL` env usage to dashboard and turbo env allowlist for lint/build tasks.
+  - Moved backend source from `apps/convertube` to `apps/serveroutside/convertube` and removed nested `.git`/`__pycache__` residue.
+  - Added migration `packages/supabase/migrations/0018_fix_convertube_tool_path.sql` to ensure Convertube tool path is `/tools/convertube`.
+  - Hardened Convertube backend runtime bootstrap:
+    - `app.py` now resolves yt-dlp via binary or `python -m yt_dlp` fallback (no hard dependency on PATH binary).
+    - Added optional auto-install for missing Python package `yt-dlp` via `CONVERTUBE_AUTO_INSTALL_PY_DEPS=true`.
+    - `/health` and `/meta` now expose dependency readiness (`yt_dlp_ready`, `ffmpeg_ready`).
+    - Added `bootstrap-and-run.sh` for hosting startup flow (install python requirements and optional ffmpeg install path).
+    - Updated `convertube.sh` to install from `requirements.txt` instead of ad-hoc package list.
+    - Added no-ffmpeg fallback for video downloads (single-stream MP4) while keeping explicit error for MP3 extraction without ffmpeg.
+
 ## [0.4.12-beta] - 2026-04-12
 
 - Monitoring backend targeted patch (no logic change to existing behavior):

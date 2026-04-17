@@ -11,10 +11,9 @@ module.exports = {
     "next/core-web-vitals",
     "plugin:@typescript-eslint/recommended",
     "prettier",
-    "plugin:only-warn/recommended",
     "plugin:turbo/recommended",
   ],
-  plugins: ["@typescript-eslint", "only-warn", "turbo"],
+  plugins: ["@typescript-eslint", "turbo"],
   parser: "@typescript-eslint/parser",
   parserOptions: {
     project,
