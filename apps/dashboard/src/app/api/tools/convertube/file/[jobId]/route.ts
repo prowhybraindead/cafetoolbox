@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getToolAccessContext, parseSafeJson } from "../../_lib";
+import { buildToolAuthHeaders, getToolAccessContext, parseSafeJson } from "../../_lib";
 
 export async function GET(_: Request, context: { params: Promise<{ jobId: string }> }) {
   try {
@@ -10,10 +10,10 @@ export async function GET(_: Request, context: { params: Promise<{ jobId: string
 
     const { jobId } = await context.params;
     const target = new URL(`${accessContext.baseUrl}/api/file/${encodeURIComponent(jobId)}`);
-    target.searchParams.set("access_token", accessContext.accessToken);
 
     const upstream = await fetch(target, {
       method: "GET",
+      headers: buildToolAuthHeaders(accessContext.accessToken),
       cache: "no-store",
     });
 

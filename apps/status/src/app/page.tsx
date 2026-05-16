@@ -1,10 +1,20 @@
-import { AlertTriangle, CheckCircle, Clock3, Github, Signal } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Github,
+  Signal,
+  Siren,
+  TimerReset,
+} from "lucide-react";
 import { createServerClient } from "@cafetoolbox/supabase";
 import { BrandMark } from "@cafetoolbox/ui";
 import { TimezoneClocks } from "../components/timezone-clocks";
 import { UptimeChart } from "../components/uptime-chart";
 import { AutoRefresh } from "../components/auto-refresh";
 import { LastRefresh } from "../components/last-refresh";
+import { StatusThemeToggle } from "../components/status-theme-toggle";
 
 type ServiceRow = {
   id: string;
@@ -20,6 +30,13 @@ type ServiceHealthRow = {
   last_response_time_ms: number | null;
   uptime_24h: number;
   consecutive_failures: number;
+};
+
+type ServiceWithHealth = ServiceRow & {
+  uptime_24h: number;
+  is_healthy: boolean;
+  last_checked_at: string | null;
+  response_time_ms: number | null;
 };
 
 type IncidentRow = {
@@ -40,39 +57,97 @@ type IncidentUpdateRow = {
   created_at: string;
 };
 
-const serviceStatusCopy = {
+type ServiceStatusKey = ServiceRow["status"];
+
+const serviceStatusCopy: Record<
+  ServiceStatusKey,
+  {
+    label: string;
+    badge: string;
+    dot: string;
+  }
+> = {
   operational: {
     label: "Hoạt động",
-    tone: "text-green-600",
-    badge: "bg-green-50 text-green-700 border-green-200",
-    bar: "bg-green-500",
+    badge: "border-green-500/35 bg-green-500/10 text-green-600",
+    dot: "bg-green-500",
   },
   degraded: {
     label: "Giảm hiệu suất",
-    tone: "text-yellow-700",
-    badge: "bg-yellow-50 text-yellow-800 border-yellow-200",
-    bar: "bg-yellow-500",
+    badge: "border-yellow-500/35 bg-yellow-500/10 text-yellow-700",
+    dot: "bg-yellow-500",
   },
   partial_outage: {
     label: "Sự cố cục bộ",
+    badge: "border-orange-500/35 bg-orange-500/10 text-orange-600",
+    dot: "bg-orange-500",
+  },
+  major_outage: {
+    label: "Sự cố lớn",
+    badge: "border-red-500/35 bg-red-500/10 text-red-600",
+    dot: "bg-red-500",
+  },
+};
+
+const incidentStatusCopy = {
+  investigating: {
+    label: "Đang điều tra",
     tone: "text-orange-600",
-    badge: "bg-orange-50 text-orange-700 border-orange-200",
-    bar: "bg-orange-500",
+    dot: "bg-orange-500",
+  },
+  identified: {
+    label: "Đã xác định",
+    tone: "text-yellow-700",
+    dot: "bg-yellow-500",
   },
   major_outage: {
     label: "Sự cố lớn",
     tone: "text-red-600",
-    badge: "bg-red-50 text-red-700 border-red-200",
-    bar: "bg-red-500",
+    dot: "bg-red-500",
+  },
+  monitoring: {
+    label: "Đang theo dõi",
+    tone: "text-blue-600",
+    dot: "bg-blue-500",
+  },
+  resolved: {
+    label: "Đã khắc phục",
+    tone: "text-green-600",
+    dot: "bg-green-500",
   },
 } as const;
 
-const incidentStatusCopy = {
-  investigating: { label: "Đang điều tra", tone: "text-orange-600" },
-  identified: { label: "Đã xác định", tone: "text-yellow-700" },
-  major_outage: { label: "Sự cố lớn", tone: "text-red-600" },
-  monitoring: { label: "Đang theo dõi", tone: "text-blue-600" },
-  resolved: { label: "Đã khắc phục", tone: "text-green-600" },
+const overallStatusCopy = {
+  no_data: {
+    label: "Chưa có dữ liệu",
+    chip: "border-charcoal/20 bg-charcoal/10 text-[var(--status-muted)]",
+    glow: "from-charcoal/10 via-charcoal/5 to-transparent",
+    icon: Signal,
+  },
+  operational: {
+    label: "Toàn hệ thống ổn định",
+    chip: "border-green-500/35 bg-green-500/10 text-green-600",
+    glow: "from-green-500/20 via-green-500/8 to-transparent",
+    icon: CheckCircle2,
+  },
+  degraded: {
+    label: "Có suy giảm hiệu suất",
+    chip: "border-yellow-500/35 bg-yellow-500/10 text-yellow-700",
+    glow: "from-yellow-500/18 via-yellow-500/6 to-transparent",
+    icon: Clock3,
+  },
+  partial_outage: {
+    label: "Đang có sự cố cục bộ",
+    chip: "border-orange-500/35 bg-orange-500/10 text-orange-600",
+    glow: "from-orange-500/18 via-orange-500/6 to-transparent",
+    icon: AlertTriangle,
+  },
+  major_outage: {
+    label: "Sự cố lớn đang diễn ra",
+    chip: "border-red-500/35 bg-red-500/10 text-red-600",
+    glow: "from-red-500/20 via-red-500/8 to-transparent",
+    icon: Siren,
+  },
 } as const;
 
 function getIncidentStatusDisplay(status: IncidentRow["status"]) {
@@ -80,71 +155,63 @@ function getIncidentStatusDisplay(status: IncidentRow["status"]) {
 }
 
 function formatPercent(value: number) {
-  return `${value.toFixed(2)}%`;
+  return `${Math.max(0, value).toFixed(2)}%`;
 }
 
 function formatDateTime(value: string | null) {
   if (!value) return "Chưa cập nhật";
 
-  return new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(new Date(value)) + " (UTC)";
+  return (
+    new Intl.DateTimeFormat("vi-VN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }).format(new Date(value)) + " (UTC)"
+  );
 }
 
-function pickOverallState(services: ServiceRow[], incidents: IncidentRow[]) {
+function resolveServiceStatus(service: ServiceWithHealth): ServiceStatusKey {
+  if (service.status === "major_outage" || service.status === "partial_outage") {
+    return service.status;
+  }
+
+  if (!service.is_healthy) {
+    return "degraded";
+  }
+
+  return "operational";
+}
+
+function pickOverallState(services: ServiceWithHealth[], incidents: IncidentRow[]) {
   if (services.length === 0) {
-    return {
-      label: "Chưa có dữ liệu",
-      tone: "text-charcoalMuted",
-      badge: "bg-charcoal/5 text-charcoalMuted border-borderLight",
-      icon: Signal,
-    };
+    return overallStatusCopy.no_data;
   }
 
-  if (services.some((service) => service.status === "major_outage")) {
-    return {
-      label: "Sự cố lớn",
-      tone: "text-red-600",
-      badge: "bg-red-50 text-red-700 border-red-200",
-      icon: AlertTriangle,
-    };
+  const hasMajorIncident = incidents.some(
+    (incident) => incident.status === "major_outage" && !incident.resolved_at
+  );
+
+  if (hasMajorIncident || services.some((service) => resolveServiceStatus(service) === "major_outage")) {
+    return overallStatusCopy.major_outage;
   }
 
-  if (services.some((service) => service.status === "partial_outage")) {
-    return {
-      label: "Sự cố cục bộ",
-      tone: "text-orange-600",
-      badge: "bg-orange-50 text-orange-700 border-orange-200",
-      icon: AlertTriangle,
-    };
+  if (services.some((service) => resolveServiceStatus(service) === "partial_outage")) {
+    return overallStatusCopy.partial_outage;
   }
 
-  if (
-    services.some((service) => service.status === "degraded") ||
-    incidents.some((incident) => incident.status !== "resolved")
-  ) {
-    return {
-      label: "Giảm hiệu suất",
-      tone: "text-yellow-700",
-      badge: "bg-yellow-50 text-yellow-800 border-yellow-200",
-      icon: Clock3,
-    };
+  const hasOpenIncident = incidents.some((incident) => incident.status !== "resolved");
+  const hasDegradedService = services.some((service) => resolveServiceStatus(service) === "degraded");
+
+  if (hasOpenIncident || hasDegradedService) {
+    return overallStatusCopy.degraded;
   }
 
-  return {
-    label: "Hoạt động",
-    tone: "text-green-600",
-    badge: "bg-green-50 text-green-700 border-green-200",
-    icon: CheckCircle,
-  };
+  return overallStatusCopy.operational;
 }
 
 export default async function StatusPage() {
   const supabase = await createServerClient();
 
-  // Fetch services, incidents, and incident updates in parallel
   const [servicesResult, incidentsResult, updatesResult] = await Promise.all([
     supabase
       .from("services")
@@ -159,14 +226,13 @@ export default async function StatusPage() {
       .from("incident_updates")
       .select("id, incident_id, body, status, created_at")
       .order("created_at", { ascending: false })
-      .limit(18),
+      .limit(24),
   ]);
 
   const services = (servicesResult.data ?? []) as ServiceRow[];
   const incidents = (incidentsResult.data ?? []) as IncidentRow[];
   const updates = (updatesResult.data ?? []) as IncidentUpdateRow[];
 
-  // Fetch real health status from heartbeats for each service
   const servicesWithHealth = await Promise.all(
     services.map(async (service) => {
       const { data: healthData, error: healthError } = await supabase
@@ -177,14 +243,13 @@ export default async function StatusPage() {
 
       if (healthError) {
         console.warn(`[status-page] Health check error for ${service.name}:`, healthError);
-        // Fallback: use seed uptime if RPC fails
         return {
           ...service,
           uptime_24h: Number(service.uptime ?? 100),
           is_healthy: service.status === "operational",
           last_checked_at: null,
           response_time_ms: null,
-        };
+        } satisfies ServiceWithHealth;
       }
 
       const health = healthData as ServiceHealthRow | null;
@@ -194,272 +259,300 @@ export default async function StatusPage() {
         is_healthy: health?.is_healthy ?? service.status === "operational",
         last_checked_at: health?.last_checked_at ?? null,
         response_time_ms: health?.last_response_time_ms ?? null,
-      };
+      } satisfies ServiceWithHealth;
     })
   );
 
-  // Calculate real average uptime from heartbeat data
   const averageUptime =
     servicesWithHealth.length > 0
       ? servicesWithHealth.reduce((total, service) => total + Number(service.uptime_24h ?? 0), 0) /
         servicesWithHealth.length
       : 0;
 
-  const operationalServices = servicesWithHealth.filter((s) => s.is_healthy).length;
+  const operationalServices = servicesWithHealth.filter((service) => service.is_healthy).length;
   const openIncidents = incidents.filter((incident) => incident.status !== "resolved").length;
-  const overallState = pickOverallState(services, incidents);
+  const overallState = pickOverallState(servicesWithHealth, incidents);
   const OverallIcon = overallState.icon;
 
-  const updatesByIncident = updates.reduce<Record<string, IncidentUpdateRow[]>>((accumulator, update) => {
-    if (!accumulator[update.incident_id]) {
-      accumulator[update.incident_id] = [];
+  const updatesByIncident = updates.reduce<Record<string, IncidentUpdateRow[]>>((acc, update) => {
+    if (!acc[update.incident_id]) {
+      acc[update.incident_id] = [];
     }
-
-    accumulator[update.incident_id].push(update);
-    return accumulator;
+    acc[update.incident_id].push(update);
+    return acc;
   }, {});
 
-  // Collect recent timestamps from services (heartbeats), incidents, and updates
   const recentTimestamps = [
-    ...servicesWithHealth.filter((s) => s.last_checked_at).map((s) => s.last_checked_at),
+    ...servicesWithHealth.filter((service) => service.last_checked_at).map((service) => service.last_checked_at),
     ...incidents.map((incident) => incident.updated_at ?? incident.resolved_at ?? incident.started_at),
     ...updates.map((update) => update.created_at),
   ].filter((value): value is string => Boolean(value));
 
   const lastUpdatedAt =
     recentTimestamps.length > 0
-      ? recentTimestamps.sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0]
+      ? recentTimestamps.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0]
       : null;
 
   return (
-    <main className="min-h-screen bg-cream text-charcoal">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,_rgba(57,255,20,0.16),_transparent_60%)]" />
-      <div className="relative mx-auto max-w-6xl px-6 py-10 lg:py-12">
-        <header className="flex flex-col gap-6 border-b border-borderLight pb-8 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-charcoal p-1.5 shadow-[0_10px_30px_rgba(18,18,18,0.15)] ring-1 ring-black/5">
-              <BrandMark className="h-12 w-12 shrink-0 rounded-xl" size={48} variant="on-dark" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.24em] text-charcoalMuted">Public Status</p>
-              <h1 className="text-2xl font-semibold tracking-tight">CafeToolbox Status</h1>
-            </div>
-          </div>
-
-          <a
-            href="https://github.com/prowhybraindead/cafetoolbox"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-borderMain bg-white px-4 py-2 text-sm font-medium text-charcoal transition-colors hover:border-neon"
-          >
-            <Github className="h-4 w-4" />
-            GitHub
-          </a>
-        </header>
-
-        <section className="mt-10 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <div className="rounded-3xl border border-borderMain bg-white p-8 shadow-[0_20px_60px_rgba(26,26,26,0.05)]">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${overallState.badge}`}>
-                <OverallIcon className="h-4 w-4" />
-                {overallState.label}
-              </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-borderLight bg-charcoal/5 px-3 py-1 text-sm text-charcoalMuted">
-                <Signal className="h-4 w-4" />
-                Open for all
-              </span>
-            </div>
-
-            <div className="mt-6 grid gap-6 md:grid-cols-3">
-              <div>
-                <p className="text-sm text-charcoalMuted">Uptime trung bình (24h)</p>
-                <p className="mt-2 text-4xl font-semibold tracking-tight">{formatPercent(averageUptime)}</p>
+    <main className="status-page">
+      <div className="status-content mx-auto max-w-7xl px-6 py-10 lg:py-12">
+        <header className="status-card rounded-3xl p-6 md:p-8">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-charcoal p-1.5 shadow-[0_10px_30px_rgba(18,18,18,0.2)]">
+                  <BrandMark className="h-11 w-11 rounded-xl" size={44} variant="on-dark" />
+                </div>
+                <div>
+                  <p className="status-kicker text-xs font-medium uppercase">Public Status</p>
+                  <h1 className="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">
+                    CafeToolbox Reliability
+                  </h1>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-charcoalMuted">Dịch vụ hoạt động</p>
-                <p className="mt-2 text-4xl font-semibold tracking-tight">
-                  {operationalServices}/{servicesWithHealth.length || 0}
+
+              <div
+                className={`rounded-2xl border border-[var(--status-border-soft)] bg-gradient-to-br ${overallState.glow} p-4`}
+              >
+                <div
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${overallState.chip}`}
+                >
+                  <OverallIcon className="h-4 w-4" />
+                  {overallState.label}
+                </div>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--status-muted)]">
+                  Trang trạng thái công khai lấy dữ liệu trực tiếp từ service heartbeat và incident logs. Mọi thời
+                  gian hiển thị theo UTC để dễ đối chiếu giữa đội vận hành và người dùng.
                 </p>
               </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusThemeToggle />
+              <a
+                href="https://github.com/prowhybraindead/cafetoolbox"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--status-border)] bg-[var(--status-bg-strong)] px-3.5 py-2 text-xs font-medium transition-colors hover:border-neon/70 hover:text-neon"
+              >
+                <Github className="h-3.5 w-3.5" />
+                GitHub
+              </a>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="status-card-soft rounded-2xl p-4">
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--status-muted)]">Uptime Trung Bình 24h</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">{formatPercent(averageUptime)}</p>
+            </article>
+            <article className="status-card-soft rounded-2xl p-4">
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--status-muted)]">Dịch Vụ Healthy</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">
+                {operationalServices}/{servicesWithHealth.length || 0}
+              </p>
+            </article>
+            <article className="status-card-soft rounded-2xl p-4">
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--status-muted)]">Incident Đang Mở</p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight">{openIncidents}</p>
+            </article>
+            <article className="status-card-soft rounded-2xl p-4">
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--status-muted)]">Cập Nhật Gần Nhất</p>
+              <p className="mt-2 text-sm font-medium leading-6">{formatDateTime(lastUpdatedAt)}</p>
+            </article>
+          </div>
+        </header>
+
+        <section className="mt-8 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          <div className="status-card rounded-3xl p-6 md:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm text-charcoalMuted">Sự cố đang mở</p>
-                <p className={`mt-2 text-4xl font-semibold tracking-tight ${overallState.tone}`}>{openIncidents}</p>
+                <h2 className="text-xl font-semibold tracking-tight">Dịch vụ và Uptime</h2>
+                <p className="mt-1 text-sm text-[var(--status-muted)]">
+                  Theo dõi uptime 24h, 7 ngày, 30 ngày theo từng service.
+                </p>
               </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-strong)] px-3 py-1 text-xs text-[var(--status-muted)]">
+                <Activity className="h-3.5 w-3.5" />
+                {servicesWithHealth.length} services
+              </span>
             </div>
 
-            <p className="mt-6 max-w-2xl text-sm leading-6 text-charcoalMuted">
-              Trang này đọc trực tiếp dữ liệu công khai từ <span className="font-medium text-charcoal">services</span>, <span className="font-medium text-charcoal">service_heartbeats</span> và <span className="font-medium text-charcoal">service_uptime_daily</span>.
-              Uptime được tính từ health check thực tế. Xem lịch sử 1 ngày / 7 ngày / 30 ngày bên dưới.
-            </p>
-          </div>
+            <div className="mt-5 space-y-4">
+              {servicesWithHealth.length > 0 ? (
+                servicesWithHealth.map((service) => {
+                  const serviceStatus = resolveServiceStatus(service);
+                  const statusInfo = serviceStatusCopy[serviceStatus];
 
-          <div className="grid gap-4">
-            <div className="rounded-3xl border border-borderMain bg-charcoal p-6 text-white">
-              <p className="text-sm text-white/70">Trạng thái hiện tại</p>
-              <p className="mt-4 text-3xl font-semibold tracking-tight text-neon">{overallState.label}</p>
-              <p className="mt-2 text-sm text-white/70">Cập nhật từ dữ liệu công khai, không yêu cầu đăng nhập.</p>
-            </div>
+                  return (
+                    <article key={service.id} className="status-card-soft rounded-2xl p-4">
+                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2.5 w-2.5 rounded-full ${statusInfo.dot}`} />
+                            <h3 className="text-base font-semibold">{service.name}</h3>
+                          </div>
+                          <p className="mt-1 text-sm text-[var(--status-muted)]">
+                            Uptime 24h: {formatPercent(Number(service.uptime_24h ?? 0))}
+                            {service.response_time_ms ? ` · ${service.response_time_ms}ms` : ""}
+                          </p>
+                          {service.last_checked_at ? (
+                            <p className="mt-1 text-xs text-[var(--status-muted)]">
+                              Last check: {formatDateTime(service.last_checked_at)}
+                            </p>
+                          ) : null}
+                        </div>
 
-            <div className="rounded-3xl border border-borderMain bg-white p-6">
-              <p className="text-sm text-charcoalMuted">Cập nhật gần nhất</p>
-              <p className="mt-3 text-lg font-semibold">{formatDateTime(lastUpdatedAt)}</p>
-              <p className="mt-2 text-sm text-charcoalMuted">
-                Khi service hoặc incident thay đổi trong Supabase, trang này sẽ phản ánh ngay ở lần tải tiếp theo.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-10 rounded-3xl border border-borderMain bg-white p-8">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">Lịch sử Uptime</h2>
-              <p className="mt-2 text-sm text-charcoalMuted">
-                Uptime được tính từ health check thực tế qua heartbeat logs. Xem theo 24h, 7 ngày hoặc 30 ngày.
-              </p>
-            </div>
-            <div className="rounded-full border border-borderLight bg-charcoal/5 px-3 py-1 text-sm text-charcoalMuted">
-              {servicesWithHealth.length} services
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4">
-            {servicesWithHealth.map((service) => {
-              const statusKey = service.is_healthy ? "operational" : "degraded";
-              const copy = serviceStatusCopy[statusKey];
-              const uptimeValue = Number(service.uptime_24h ?? 0);
-
-              return (
-                <div key={service.id}>
-                  <div className="flex items-center justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-base font-semibold">{service.name}</h3>
-                      <span className="text-sm text-charcoalMuted">
-                        24h: {formatPercent(uptimeValue)}{service.response_time_ms ? ` · ${service.response_time_ms}ms` : ""}
-                      </span>
-                      {service.last_checked_at && (
-                        <span className="hidden sm:inline text-xs text-charcoalMuted">
-                          Check: {formatDateTime(service.last_checked_at)}
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${statusInfo.badge}`}
+                        >
+                          {statusInfo.label}
                         </span>
-                      )}
-                    </div>
-                    <span className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${copy.badge}`}>
-                      {copy.label}
-                    </span>
-                  </div>
-                  <UptimeChart serviceId={service.id} serviceName="" />
+                      </div>
+
+                      <UptimeChart serviceId={service.id} />
+                    </article>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl border border-dashed border-[var(--status-border-soft)] p-8 text-center text-sm text-[var(--status-muted)]">
+                  Chưa có service nào được cấu hình.
                 </div>
-              );
-            })}
-
-            {servicesWithHealth.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-borderLight p-8 text-center text-charcoalMuted">
-                Chưa có service nào được seed vào Supabase.
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </section>
 
-        <section className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-3xl border border-borderMain bg-white p-8">
-            <h2 className="text-xl font-semibold tracking-tight">Sự cố gần đây</h2>
-            <p className="mt-2 text-sm text-charcoalMuted">
-              Dữ liệu này dùng để theo dõi lịch sử gián đoạn và tiến trình xử lý.
+          <aside className="status-card rounded-3xl p-6 md:p-7">
+            <h2 className="text-xl font-semibold tracking-tight">Incident Timeline</h2>
+            <p className="mt-1 text-sm text-[var(--status-muted)]">
+              Tiến trình xử lý sự cố gần đây, ưu tiên thông tin update mới nhất.
             </p>
 
-            <div className="mt-6 max-h-[560px] space-y-4 overflow-y-auto pr-2">
+            <div className="mt-5 max-h-[920px] space-y-4 overflow-y-auto pr-1">
               {incidents.length > 0 ? (
                 incidents.map((incident) => {
                   const incidentStatus = getIncidentStatusDisplay(incident.status);
                   const incidentUpdates = updatesByIncident[incident.id] ?? [];
 
                   return (
-                    <article key={incident.id} className="rounded-2xl border border-borderLight p-5">
+                    <article key={incident.id} className="status-card-soft rounded-2xl p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h3 className="text-lg font-semibold">{incident.title}</h3>
-                          <p className="mt-1 text-sm text-charcoalMuted">
+                        <div className="space-y-1">
+                          <h3 className="text-base font-semibold leading-6">{incident.title}</h3>
+                          <p className="text-xs text-[var(--status-muted)]">
                             Bắt đầu: {formatDateTime(incident.started_at)}
                             {incident.resolved_at ? ` · Khôi phục: ${formatDateTime(incident.resolved_at)}` : ""}
                           </p>
                         </div>
-                        <span className={incidentStatus.tone}>{incidentStatus.label}</span>
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${incidentStatus.tone}`}>
+                          <span className={`h-2 w-2 rounded-full ${incidentStatus.dot}`} />
+                          {incidentStatus.label}
+                        </span>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-charcoalMuted">
-                        {(incident.services_affected ?? []).map((service) => (
-                          <span key={service} className="rounded-full bg-charcoal/5 px-3 py-1">
-                            {service}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(incident.services_affected ?? []).length > 0 ? (
+                          (incident.services_affected ?? []).map((serviceName) => (
+                            <span
+                              key={serviceName}
+                              className="inline-flex rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-soft)] px-2.5 py-1 text-xs text-[var(--status-muted)]"
+                            >
+                              {serviceName}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="inline-flex rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-soft)] px-2.5 py-1 text-xs text-[var(--status-muted)]">
+                            Không có service affected
                           </span>
-                        ))}
-                        {(incident.services_affected ?? []).length === 0 ? (
-                          <span className="rounded-full bg-charcoal/5 px-3 py-1">Không có service affected</span>
-                        ) : null}
+                        )}
                       </div>
 
                       {incidentUpdates.length > 0 ? (
-                        <div className="mt-4 space-y-3 border-t border-borderLight pt-4">
-                          {incidentUpdates.slice(0, 3).map((update) => (
-                            <div key={update.id} className="flex gap-3">
-                              <div className="mt-1 h-2.5 w-2.5 rounded-full bg-neon" />
-                              <div>
-                                <p className="text-sm font-medium">{update.body}</p>
-                                <p className="mt-1 text-xs text-charcoalMuted">{formatDateTime(update.created_at)}</p>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="mt-4 border-t status-divider pt-4">
+                          <div className="space-y-3">
+                            {incidentUpdates.slice(0, 3).map((update) => {
+                              const updateStatus = getIncidentStatusDisplay(update.status);
+                              return (
+                                <div key={update.id} className="flex gap-2.5">
+                                  <span
+                                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${updateStatus.dot}`}
+                                    aria-hidden
+                                  />
+                                  <div>
+                                    <p className="text-sm leading-6">{update.body}</p>
+                                    <p className="text-xs text-[var(--status-muted)]">{formatDateTime(update.created_at)}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       ) : null}
                     </article>
                   );
                 })
               ) : (
-                <div className="rounded-2xl border border-dashed border-borderLight p-8 text-center">
-                  <CheckCircle className="mx-auto mb-4 h-10 w-10 text-neon" />
-                  <p className="text-sm text-charcoalMuted">Không có sự cố nào được ghi nhận gần đây.</p>
+                <div className="rounded-2xl border border-dashed border-[var(--status-border-soft)] p-8 text-center">
+                  <CheckCircle2 className="mx-auto h-9 w-9 text-green-500" />
+                  <p className="mt-3 text-sm text-[var(--status-muted)]">Không có incident nào gần đây.</p>
                 </div>
               )}
-            </div>
-          </div>
-
-          <aside className="rounded-3xl border border-borderMain bg-charcoal p-8 text-white">
-            <h2 className="text-xl font-semibold tracking-tight">Cách theo dõi uptime</h2>
-            <div className="mt-5 space-y-4 text-sm text-white/75">
-              <p>
-                1. Monitoring worker kiểm tra health mỗi 30s, ghi kết quả vào bảng <span className="text-neon">service_heartbeats</span>.
-              </p>
-              <p>
-                2. Biểu đồ 1d được chia theo giờ từ heartbeat logs; biểu đồ 7d/30d dùng dữ liệu tổng hợp hàng ngày từ bảng <span className="text-neon">service_uptime_daily</span>.
-              </p>
-              <p>
-                3. Status page đọc trực tiếp dữ liệu công khai, nên ai cũng xem được mà không cần đăng nhập.
-              </p>
-              <p>
-                4. Khi phát hiện sự cố, hệ thống tự động tạo incident và cập nhật trạng thái trên trang này.
-              </p>
             </div>
           </aside>
         </section>
 
-        <section className="mt-12 rounded-3xl border border-borderMain bg-white p-8">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-semibold tracking-tight">Đồng hồ các múi giờ</h2>
-            <p className="text-sm text-charcoalMuted">
-              So sánh thời gian giữa server (Vercel), giờ chuẩn UTC và giờ Việt Nam (UTC+7). Tất cả thời gian trên trang đều hiển thị theo UTC.
-            </p>
-          </div>
-          <div className="mt-6">
-            <TimezoneClocks />
-          </div>
-        </section>
+        <section className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <article className="status-card rounded-3xl p-6 md:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight">Đồng hồ múi giờ</h2>
+                <p className="mt-1 text-sm text-[var(--status-muted)]">
+                  So sánh nhanh thời gian giữa Vercel, UTC và Việt Nam.
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-strong)] px-3 py-1 text-xs text-[var(--status-muted)]">
+                <Clock3 className="h-3.5 w-3.5" />
+                Time sync
+              </span>
+            </div>
+            <div className="mt-5">
+              <TimezoneClocks />
+            </div>
+          </article>
 
-        <footer className="mt-12 border-t border-borderLight pt-6 text-sm text-charcoalMuted">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p>Public status page for CafeToolbox.</p>
-            <div className="flex items-center gap-4">
+          <article className="status-card rounded-3xl p-6 md:p-7">
+            <h2 className="text-xl font-semibold tracking-tight">Monitoring Flow</h2>
+            <p className="mt-1 text-sm text-[var(--status-muted)]">
+              Cách dữ liệu được tổng hợp trước khi hiển thị lên status page.
+            </p>
+
+            <div className="mt-4 space-y-3 text-sm leading-6 text-[var(--status-muted)]">
+              <p className="status-card-soft rounded-xl p-3">
+                1. Worker chạy health check mỗi 30 giây và ghi vào <span className="font-mono">service_heartbeats</span>.
+              </p>
+              <p className="status-card-soft rounded-xl p-3">
+                2. View 24h đọc dữ liệu heartbeat theo giờ; 7d/30d dùng bảng tổng hợp{" "}
+                <span className="font-mono">service_uptime_daily</span>.
+              </p>
+              <p className="status-card-soft rounded-xl p-3">
+                3. Khi có lỗi kéo dài, incident sẽ được tạo và cập nhật timeline công khai.
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center gap-2">
               <AutoRefresh />
               <LastRefresh />
             </div>
+          </article>
+        </section>
+
+        <footer className="mt-8 border-t status-divider pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--status-muted)]">
+            <span>Public status page for CafeToolbox</span>
+            <span className="inline-flex items-center gap-1">
+              <TimerReset className="h-3.5 w-3.5" />
+              Refresh interval: 60s
+            </span>
           </div>
         </footer>
       </div>

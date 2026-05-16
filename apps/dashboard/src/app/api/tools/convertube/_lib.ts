@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { createClient } from "@cafetoolbox/supabase/server";
+import { getLaunchableToolBySlug, requireDashboardUser } from "../_lib";
 
 function toBase64Url(input: string | Buffer): string {
   return Buffer.from(input)
@@ -17,13 +17,14 @@ function signPayload(payload: object, secret: string): string {
 }
 
 export async function getToolAccessContext() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await requireDashboardUser();
+  if ("error" in session) {
+    return { error: session.error };
+  }
 
-  if (!user) {
-    return { error: NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 }) };
+  const tool = await getLaunchableToolBySlug(session.supabase, "convertube");
+  if ("error" in tool) {
+    return { error: tool.error };
   }
 
   const apiBaseUrl = process.env.CONVERTUBE_API_BASE_URL?.trim();
@@ -54,10 +55,10 @@ export async function getToolAccessContext() {
   const accessToken = signPayload(
     {
       iss: "cafetoolbox-dashboard",
-      sub: user.id,
-      email: user.email ?? "",
-      tool: "convertube",
-      aud: "convertube",
+      sub: session.user.id,
+      email: session.user.email ?? "",
+      tool: tool.slug,
+      aud: tool.slug,
       iat: now,
       exp: now + ttl,
     },
@@ -66,6 +67,12 @@ export async function getToolAccessContext() {
 
   const baseUrl = apiBaseUrl.replace(/\/+$/, "");
   return { baseUrl, accessToken };
+}
+
+export function buildToolAuthHeaders(accessToken: string, extra?: HeadersInit): Headers {
+  const headers = new Headers(extra);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  return headers;
 }
 
 export function parseSafeJson(raw: string): Record<string, unknown> | null {

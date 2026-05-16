@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Globe, Clock } from "lucide-react";
+import { Clock3, Globe } from "lucide-react";
 
 type TimezoneClock = {
   label: string;
@@ -66,20 +66,24 @@ function SingleClock({ clock }: { clock: TimezoneClock }) {
   }, [clock.tz]);
 
   return (
-    <div className="flex flex-col items-center gap-2 rounded-2xl border border-borderLight bg-white px-5 py-4 shadow-[0_4px_12px_rgba(26,26,26,0.04)]">
-      <div className="flex items-center gap-2 text-charcoalMuted">
-        <Globe className="h-3.5 w-3.5" />
-        <span className="text-xs font-medium uppercase tracking-wider">{clock.label}</span>
+    <article className="status-card-soft rounded-2xl p-4 transition-colors">
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--status-muted)]">
+          <Globe className="h-3.5 w-3.5" />
+          {clock.label}
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-strong)] px-2 py-1 text-[11px] text-[var(--status-muted)]">
+          <Clock3 className="h-3 w-3" />
+          {clock.abbr}
+        </span>
       </div>
-      <p className="font-mono text-2xl font-semibold tracking-tight text-charcoal tabular-nums">
+
+      <p className="mt-3 font-mono text-2xl font-semibold tracking-tight tabular-nums text-[var(--status-text)]">
         {time || "--:--:--"}
       </p>
-      <p className="text-xs text-charcoalMuted">{date || "..."}</p>
-      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-charcoal/5 px-2.5 py-0.5 text-xs text-charcoalMuted">
-        <Clock className="h-3 w-3" />
-        {clock.abbr}
-      </span>
-    </div>
+      <p className="mt-1 text-xs text-[var(--status-muted)]">{date || "..."}</p>
+      <p className="mt-2 text-xs leading-5 text-[var(--status-muted)]">{clock.description}</p>
+    </article>
   );
 }
 
@@ -94,21 +98,21 @@ export function TimezoneClocks() {
     return (
       <div className="grid gap-4 sm:grid-cols-3">
         {CLOCKS.map((clock) => (
-          <div
-            key={clock.tz}
-            className="flex flex-col items-center gap-2 rounded-2xl border border-borderLight bg-white px-5 py-4"
-          >
-            <div className="flex items-center gap-2 text-charcoalMuted">
-              <Globe className="h-3.5 w-3.5" />
-              <span className="text-xs font-medium uppercase tracking-wider">{clock.label}</span>
+          <article key={clock.tz} className="status-card-soft rounded-2xl p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--status-muted)]">
+                <Globe className="h-3.5 w-3.5" />
+                {clock.label}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-strong)] px-2 py-1 text-[11px] text-[var(--status-muted)]">
+                <Clock3 className="h-3 w-3" />
+                {clock.abbr}
+              </span>
             </div>
-            <p className="font-mono text-2xl font-semibold tracking-tight text-charcoalMuted">--:--:--</p>
-            <p className="text-xs text-charcoalMuted">...</p>
-            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-charcoal/5 px-2.5 py-0.5 text-xs text-charcoalMuted">
-              <Clock className="h-3 w-3" />
-              {clock.abbr}
-            </span>
-          </div>
+            <p className="mt-3 font-mono text-2xl font-semibold tracking-tight text-[var(--status-muted)]">--:--:--</p>
+            <p className="mt-1 text-xs text-[var(--status-muted)]">...</p>
+            <p className="mt-2 text-xs leading-5 text-[var(--status-muted)]">{clock.description}</p>
+          </article>
         ))}
       </div>
     );

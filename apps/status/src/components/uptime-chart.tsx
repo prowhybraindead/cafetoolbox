@@ -9,7 +9,6 @@ type UptimeDataPoint = {
 
 type UptimeChartProps = {
   serviceId: string;
-  serviceName: string;
 };
 
 type RangeKey = "1d" | "7d" | "30d";
@@ -20,12 +19,17 @@ const RANGE_CONFIG: Record<RangeKey, { label: string; days: number }> = {
   "30d": { label: "30 ngày", days: 30 },
 };
 
-function getUptimeColor(uptime: number | null): string {
-  if (uptime === null) return "bg-charcoal/10";
+function getUptimeColorClass(uptime: number | null): string {
+  if (uptime === null) return "bg-charcoal/15";
   if (uptime >= 99.5) return "bg-green-500";
   if (uptime >= 95) return "bg-yellow-500";
   if (uptime >= 80) return "bg-orange-500";
   return "bg-red-500";
+}
+
+function getUptimeBarHeight(uptime: number | null) {
+  if (uptime === null) return 20;
+  return Math.min(100, Math.max(20, uptime));
 }
 
 function getUptimeTooltip(uptime: number | null, date: string): string {
@@ -47,11 +51,11 @@ function getUptimeTooltip(uptime: number | null, date: string): string {
         timeZone: "UTC",
       });
 
-  if (uptime === null) return `${formatted}: Không có dữ liệu`;
+  if (uptime === null) return `${formatted}: Khong co du lieu`;
   return `${formatted}: ${uptime.toFixed(2)}% uptime`;
 }
 
-export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
+export function UptimeChart({ serviceId }: UptimeChartProps) {
   const [range, setRange] = useState<RangeKey>("1d");
   const [data, setData] = useState<UptimeDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,9 +66,9 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
     setError(null);
     try {
       const { days } = RANGE_CONFIG[range];
-      const response = await fetch(
-        `/api/uptime-history?serviceId=${serviceId}&days=${days}`
-      );
+      const response = await fetch(`/api/uptime-history?serviceId=${serviceId}&days=${days}`, {
+        cache: "no-store",
+      });
       if (!response.ok) {
         if (response.status === 500) {
           setData([]);
@@ -75,7 +79,7 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
       const result: UptimeDataPoint[] = await response.json();
       setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lỗi tải dữ liệu");
+      setError(err instanceof Error ? err.message : "Loi tai du lieu");
     } finally {
       setLoading(false);
     }
@@ -110,32 +114,32 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
   };
 
   return (
-    <div className="rounded-2xl border border-borderLight p-5">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="status-card-soft rounded-2xl p-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold">{serviceName}</h3>
-          <p className="mt-1 text-sm text-charcoalMuted">
+          <p className="text-sm text-[var(--status-muted)]">
             {avgUptime !== null ? (
-              <>Uptime TB: <span className="font-medium text-charcoal">{avgUptime.toFixed(2)}%</span></>
+              <>
+                Uptime TB: <span className="font-semibold text-[var(--status-text)]">{avgUptime.toFixed(2)}%</span>
+              </>
             ) : (
-              "Chưa có dữ liệu"
+              "Chua co du lieu"
             )}
-            {" · "}{RANGE_CONFIG[range].label}
+            {" · "}
+            {RANGE_CONFIG[range].label}
           </p>
         </div>
 
-        {/* Range tabs */}
-        <div className="flex rounded-lg border border-borderLight bg-charcoal/5 p-0.5">
+        <div className="inline-flex rounded-lg border border-[var(--status-border-soft)] bg-[var(--status-bg-soft)] p-1">
           {(Object.keys(RANGE_CONFIG) as RangeKey[]).map((key) => (
             <button
               key={key}
               onClick={() => setRange(key)}
-              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
-                range === key
-                  ? "bg-white text-charcoal shadow-sm"
-                  : "text-charcoalMuted hover:text-charcoal"
-              }`}
+              className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${range === key
+                  ? "bg-[var(--status-bg-strong)] text-[var(--status-text)] shadow-sm"
+                  : "text-[var(--status-muted)] hover:text-[var(--status-text)]"
+                }`}
+              aria-pressed={range === key}
             >
               {RANGE_CONFIG[key].label}
             </button>
@@ -143,47 +147,62 @@ export function UptimeChart({ serviceId, serviceName }: UptimeChartProps) {
         </div>
       </div>
 
-      {/* Chart bars */}
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-[var(--status-muted)]">
+        {[
+          { label: "99.5%+", color: "bg-green-500" },
+          { label: "95-99.49%", color: "bg-yellow-500" },
+          { label: "80-94.99%", color: "bg-orange-500" },
+          { label: "<80%", color: "bg-red-500" },
+          { label: "No data", color: "bg-charcoal/15" },
+        ].map((legend) => (
+          <span key={legend.label} className="inline-flex items-center gap-1">
+            <span className={`h-2 w-2 rounded-full ${legend.color}`} />
+            {legend.label}
+          </span>
+        ))}
+      </div>
+
       <div className="mt-4">
         {loading ? (
-          <div className="flex h-16 items-center justify-center text-sm text-charcoalMuted">
-            Đang tải...
+          <div className="flex h-20 items-center justify-center rounded-xl border border-dashed border-[var(--status-border-soft)] text-sm text-[var(--status-muted)]">
+            Dang tai du lieu uptime...
           </div>
         ) : error ? (
-          <div className="flex h-16 items-center justify-center text-sm text-red-600">
+          <div className="flex h-20 items-center justify-center rounded-xl border border-red-200 bg-red-50/80 text-sm text-red-700">
             {error}
           </div>
         ) : data.length === 0 ? (
-          <div className="flex h-16 flex-col items-center justify-center gap-1 text-sm text-charcoalMuted">
-            <span>Chưa có dữ liệu lịch sử uptime</span>
-            <span className="text-xs">Chạy migration + aggregate-uptime-daily để tạo dữ liệu</span>
+          <div className="flex h-20 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--status-border-soft)] text-sm text-[var(--status-muted)]">
+            <span>Chua co du lieu lich su uptime</span>
+            <span className="text-xs">Hay chay aggregate-uptime-daily de tao du lieu</span>
           </div>
         ) : (
-          <div className="flex items-end gap-[3px]" style={{ height: `${range === "30d" ? 48 : 56}px` }}>
-            {data.map((point) => (
-              <div
-                key={point.date}
-                className={`group relative flex-1 rounded-sm transition-all hover:opacity-80 ${getUptimeColor(point.uptime)}`}
-                style={{ minHeight: "6px" }}
-                title={getUptimeTooltip(point.uptime, point.date)}
-              >
-                {/* Tooltip on hover */}
-                <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-charcoal px-2.5 py-1.5 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-                  {getUptimeTooltip(point.uptime, point.date)}
+          <div className="rounded-xl border border-[var(--status-border-soft)] bg-[var(--status-bg-soft)] p-3">
+            <div className="flex h-20 items-end gap-[4px]">
+              {data.map((point) => (
+                <div
+                  key={point.date}
+                  className="group relative flex-1"
+                  title={getUptimeTooltip(point.uptime, point.date)}
+                >
+                  <div
+                    className={`w-full rounded-[3px] transition-opacity hover:opacity-80 ${getUptimeColorClass(point.uptime)}`}
+                    style={{ height: `${getUptimeBarHeight(point.uptime)}%` }}
+                  />
+                  <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-charcoal px-2.5 py-1.5 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    {getUptimeTooltip(point.uptime, point.date)}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            <div className="mt-2 flex justify-between text-xs text-[var(--status-muted)]">
+              <span>{formatRangeEdge(data[0]?.date)}</span>
+              <span>{formatRangeEdge(data[data.length - 1]?.date)}</span>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Date range label */}
-      {!loading && data.length > 0 && (
-        <div className="mt-2 flex justify-between text-xs text-charcoalMuted">
-          <span>{formatRangeEdge(data[0]?.date)}</span>
-          <span>{formatRangeEdge(data[data.length - 1]?.date)}</span>
-        </div>
-      )}
     </div>
   );
 }

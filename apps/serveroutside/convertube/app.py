@@ -81,7 +81,8 @@ BACKGROUND_CLEANUP_INTERVAL_SECONDS = max(
     60, int(os.environ.get("BACKGROUND_CLEANUP_INTERVAL_SECONDS", "600"))
 )
 CLEANUP_DAILY_HOUR_UTC = int(os.environ.get("CLEANUP_DAILY_HOUR_UTC", "-1"))
-AUTO_INSTALL_PY_DEPS = os.environ.get("CONVERTUBE_AUTO_INSTALL_PY_DEPS", "true").lower() == "true"
+AUTO_INSTALL_PY_DEPS = os.environ.get("CONVERTUBE_AUTO_INSTALL_PY_DEPS", "false").lower() == "true"
+ALLOW_QUERY_TOKEN_FALLBACK = os.environ.get("CONVERTUBE_ALLOW_QUERY_TOKEN_FALLBACK", "false").lower() == "true"
 YTDLP_BIN_OVERRIDE = os.environ.get("YTDLP_BIN", "").strip()
 jobs_lock = threading.Lock()
 queue_condition = threading.Condition(jobs_lock)
@@ -180,6 +181,87 @@ def now_ts():
     return int(time.time())
 
 
+def is_truthy(value):
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def is_production_env():
+    candidates = [
+        os.environ.get("CONVERTUBE_ENV"),
+        os.environ.get("FLASK_ENV"),
+        os.environ.get("ENV"),
+        os.environ.get("PYTHON_ENV"),
+        os.environ.get("NODE_ENV"),
+    ]
+    return any(str(value or "").strip().lower() == "production" for value in candidates)
+
+
+def is_https_request():
+    if request.is_secure:
+        return True
+
+    forwarded_proto = request.headers.get("X-Forwarded-Proto", "")
+    if forwarded_proto:
+        first_proto = forwarded_proto.split(",")[0].strip().lower()
+        return first_proto == "https"
+
+    return False
+
+
+def should_use_secure_cookie():
+    if is_truthy(os.environ.get("CONVERTUBE_SECURE_COOKIE", "")):
+        return True
+    return is_production_env() or is_https_request()
+
+
+def set_access_cookie(response, token):
+    response.set_cookie(
+        ACCESS_COOKIE_NAME,
+        token,
+        max_age=ACCESS_COOKIE_TTL_SECONDS,
+        httponly=True,
+        secure=should_use_secure_cookie(),
+        samesite="Lax",
+    )
+
+
+def get_bearer_token():
+    authorization = request.headers.get("Authorization", "")
+    if not authorization:
+        return ""
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer":
+        return ""
+    return token.strip()
+
+
+def validate_startup_config():
+    secret = os.environ.get("DASHBOARD_TOOL_SHARED_SECRET", "").strip()
+    if not is_production_env():
+        return
+
+    weak_tokens = {"change-me", "dev-dashboard-tool-secret-please-change"}
+    lowered_secret = secret.lower()
+    if (
+        not secret
+        or len(secret) < 32
+        or lowered_secret in weak_tokens
+        or "change-me" in lowered_secret
+        or "please-change" in lowered_secret
+    ):
+        raise RuntimeError(
+            "DASHBOARD_TOOL_SHARED_SECRET is missing or weak. "
+            "Set a strong production secret (for example: openssl rand -hex 32)."
+        )
+
+    if AUTO_INSTALL_PY_DEPS:
+        raise RuntimeError(
+            "CONVERTUBE_AUTO_INSTALL_PY_DEPS=true is blocked in production. "
+            "Install dependencies at build time instead."
+        )
+
+
 def base64url_decode(value):
     padded = value + "=" * (-len(value) % 4)
     return base64.urlsafe_b64decode(padded.encode("utf-8"))
@@ -217,29 +299,24 @@ def verify_access_token(token):
     return payload
 
 
-def get_valid_claims():
+def get_valid_claims(api=False):
     cookie_token = request.cookies.get(ACCESS_COOKIE_NAME)
     claims = verify_access_token(cookie_token)
     if claims:
         return claims
 
+    claims = verify_access_token(get_bearer_token())
+    if claims:
+        return claims
+
+    if not ALLOW_QUERY_TOKEN_FALLBACK:
+        return None
+
     access_token = request.args.get("access_token", "")
     claims = verify_access_token(access_token)
-    
-    # If token from query param is valid, set it as cookie for future requests
-    if claims:
-        response = make_response()
-        response.set_cookie(
-            ACCESS_COOKIE_NAME,
-            access_token,
-            max_age=ACCESS_COOKIE_TTL_SECONDS,
-            httponly=True,
-            secure=os.environ.get("CONVERTUBE_SECURE_COOKIE", "").lower() == "true",
-            samesite="Lax"
-        )
-        # Store response in thread-local to apply later
-        request._ctb_set_cookie = response
-    
+    if claims and not api:
+        request._ctb_bootstrap_token = access_token
+
     return claims
 
 
@@ -247,33 +324,23 @@ def require_internal_access(api=False):
     def decorator(func):
         @wraps(func)
         def wrapped(*args, **kwargs):
-            claims = get_valid_claims()
+            claims = get_valid_claims(api=api)
             if not claims:
                 if api:
                     return jsonify({"error": "Unauthorized. Please launch from dashboard."}), 401
                 # For page requests, redirect to dashboard login
                 login_url = f"{resolve_dashboard_url().rstrip('/')}/login"
                 return redirect(login_url)
-            
+
             result = func(*args, **kwargs)
-            
-            # Apply cookie if it was set during token extraction
-            if hasattr(request, '_ctb_set_cookie'):
-                cookie_response = request._ctb_set_cookie
-                if isinstance(result, tuple):
-                    # If function returns tuple (response, status_code), we need to wrap it
-                    response = make_response(result[0])
-                    response.status_code = result[1] if len(result) > 1 else 200
-                else:
-                    response = make_response(result)
-                
-                # Copy cookie headers from prepared response
-                for header, value in cookie_response.headers:
-                    if header.lower() == 'set-cookie':
-                        response.headers.add(header, value)
-                return response
-            
-            return result
+
+            bootstrap_token = getattr(request, "_ctb_bootstrap_token", "")
+            if not bootstrap_token:
+                return result
+
+            response = make_response(result)
+            set_access_cookie(response, bootstrap_token)
+            return response
 
         return wrapped
 
@@ -640,6 +707,9 @@ def queue_worker_loop():
         run_download(next_job_id)
 
 
+validate_startup_config()
+
+
 worker_threads = []
 for _ in range(max(1, MAX_CONCURRENT_JOBS)):
     t = threading.Thread(target=queue_worker_loop, daemon=True)
@@ -651,24 +721,22 @@ if ENABLE_BACKGROUND_CLEANUP:
     cleanup_thread.start()
 
 
+@app.route("/auth/launch", methods=["POST"])
+def auth_launch():
+    access_token = request.form.get("access_token", "").strip()
+    claims = verify_access_token(access_token)
+    if not claims:
+        return jsonify({"error": "Unauthorized. Invalid or expired launch token."}), 401
+
+    response = make_response(redirect("/", code=303))
+    set_access_cookie(response, access_token)
+    return response
+
+
 @app.route("/")
 @require_internal_access(api=False)
 def index():
     cleanup_jobs()
-    token = request.args.get("access_token", "")
-    claims = verify_access_token(token)
-    if claims:
-        response = make_response(redirect("/"))
-        response.set_cookie(
-            ACCESS_COOKIE_NAME,
-            token,
-            max_age=ACCESS_COOKIE_TTL_SECONDS,
-            httponly=True,
-            secure=request.is_secure,
-            samesite="Lax",
-        )
-        return response
-
     return render_template("index.html")
 
 

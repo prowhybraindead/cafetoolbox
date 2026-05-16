@@ -1,4 +1,5 @@
 import { createServerClient } from '@cafetoolbox/supabase';
+import { redirect } from 'next/navigation';
 import { DashboardShell } from '../../components/dashboard-shell';
 import type { UserInfo } from '../../components/dashboard-nav';
 
@@ -9,6 +10,9 @@ export default async function ToolsLayout({
 }) {
   const supabase = await createServerClient();
   const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    redirect('/login');
+  }
 
   const initialUser: UserInfo | null = user
     ? {

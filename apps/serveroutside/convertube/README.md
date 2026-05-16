@@ -79,8 +79,11 @@ CLEANUP_DAILY_HOUR_UTC=-1
 # Optional metadata
 CONVERTUBE_VERSION=0.1.0
 
-# Auto-install missing Python deps (yt-dlp module) on startup
-CONVERTUBE_AUTO_INSTALL_PY_DEPS=true
+# Runtime Python dependency install (keep false in production)
+CONVERTUBE_AUTO_INSTALL_PY_DEPS=false
+
+# Temporary backward-compat only (unsafe token in URL query); keep false
+CONVERTUBE_ALLOW_QUERY_TOKEN_FALLBACK=false
 
 # Optional yt-dlp binary override
 YTDLP_BIN=
@@ -88,9 +91,12 @@ YTDLP_BIN=
 # Used by bootstrap script to auto-install ffmpeg (if host allows apt/apk)
 CONVERTUBE_AUTO_INSTALL_SYSTEM_DEPS=false
 
-# Must match dashboard secret for launch token signing
-DASHBOARD_TOOL_SHARED_SECRET=change-me
+# Must match dashboard secret for launch token signing (use strong random secret)
+DASHBOARD_TOOL_SHARED_SECRET=replace-with-strong-random-secret
 ACCESS_COOKIE_TTL_SECONDS=43200
+
+# Force Secure cookie explicitly (optional); production/HTTPS already forces Secure by default
+CONVERTUBE_SECURE_COOKIE=false
 
 # Public URLs for hosted deployment
 # CNAME / public URL (primary)
@@ -104,6 +110,8 @@ CONVERTUBE_ORIGIN_HEALTH_URL=http://mbasic7.pikamc.vn:25914/health
 # Optional comma-separated aliases
 CONVERTUBE_PUBLIC_BASE_URL_ALIASES=http://mbasic7.pikamc.vn:25914
 ```
+
+In production, Convertube fails fast when `DASHBOARD_TOOL_SHARED_SECRET` is missing/weak or when `CONVERTUBE_AUTO_INSTALL_PY_DEPS=true`.
 
 ### Health endpoints (for dashboard/status integration)
 
@@ -127,8 +135,9 @@ If `ffmpeg` is missing on low-cost hosting:
 ### Dashboard-gated access (internal use)
 
 - Convertube can be configured to only accept requests launched from dashboard.
-- Dashboard signs a short-lived access token and redirects user to Convertube.
-- Convertube validates token, sets internal cookie session, and blocks direct anonymous access.
+- Dashboard signs a short-lived access token and hands it off with an auto-submitted `POST /auth/launch` form.
+- Convertube validates token, sets an HttpOnly session cookie, redirects with clean URL, and blocks direct anonymous access.
+- Dashboard proxy APIs call Convertube with `Authorization: Bearer <token>` (no token in query string).
 - The deployed public URL is controlled by `CONVERTUBE_PUBLIC_BASE_URL` and `CONVERTUBE_HEALTH_URL`.
 - You can publish both CNAME + origin host using:
   - `CONVERTUBE_ORIGIN_BASE_URL`

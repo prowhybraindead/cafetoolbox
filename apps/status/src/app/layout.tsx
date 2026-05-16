@@ -15,9 +15,24 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Status - CafeToolbox",
-  description: "System status page for CafeToolbox",
+  title: "CafeToolbox Status",
+  description: "Public reliability and incident status page for CafeToolbox",
 };
+
+const themeInitScript = `
+(() => {
+  try {
+    const key = "cafetoolbox-theme";
+    const saved = window.localStorage.getItem(key);
+    const resolved = saved === "light" || saved === "dark"
+      ? saved
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = resolved;
+  } catch (_error) {
+    document.documentElement.dataset.theme = "light";
+  }
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -25,8 +40,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="vi" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         {children}
       </body>
     </html>

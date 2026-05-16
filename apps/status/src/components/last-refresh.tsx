@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Clock3 } from "lucide-react";
 
 const REFRESH_INTERVAL_MS = 60_000;
 
@@ -25,5 +26,10 @@ export function LastRefresh() {
     return () => clearInterval(timer);
   }, []);
 
-  return <span>Thời gian trên trang hiển thị theo UTC · Last refresh: {formatUtcDateTime(lastRefreshAt)}</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--status-border-soft)] bg-[var(--status-bg-soft)] px-3 py-2 text-xs text-[var(--status-muted)]">
+      <Clock3 className="h-3 w-3" />
+      UTC · Last refresh: {formatUtcDateTime(lastRefreshAt)}
+    </span>
+  );
 }

@@ -11,6 +11,7 @@ CafeToolbox is a monorepo platform with a private admin dashboard, a public stat
 - Dashboard app is operational for:
   - admin user management (create, edit, role update, delete)
   - tool and category administration
+  - local and external tool integration via unified dashboard launch framework
   - profile management and user password change
   - **New**: Health check configuration & monitoring (admin dashboard for service endpoints)
 - Status app is operational with:
@@ -71,6 +72,11 @@ AUTH_COOKIE_DOMAIN=localhost
 DASHBOARD_TOOL_SHARED_SECRET=...
 DASHBOARD_TOOL_TOKEN_TTL_SECONDS=300
 CONVERTUBE_API_BASE_URL=http://localhost:25914
+
+# Tool launch handoff configuration (external tools)
+DASHBOARD_TOOL_HANDOFF_PATHS=convertube=/auth/launch
+DASHBOARD_TOOL_DEFAULT_HANDOFF_PATH=
+DASHBOARD_TOOL_ALLOW_LEGACY_QUERY_TOKEN=false
 ```
 
 Production cookie domain target:
@@ -116,7 +122,8 @@ Protected routes:
 
 - `/dashboard`
 - `/dashboard/tools`
-- `/tools/convertube`
+- `/tools/*` (all integrated local tools, login required)
+- example: `/tools/convertube`
 - `/dashboard/settings`
 - `/admin`
 - `/admin/users`
@@ -129,6 +136,28 @@ Convertube dashboard proxy routes:
 - `POST /api/tools/convertube/download`
 - `GET /api/tools/convertube/status/[jobId]`
 - `GET /api/tools/convertube/file/[jobId]`
+
+External tool launch route:
+
+- `GET /api/tools/launch?toolId=<uuid>`
+- local tools (`/tools/<slug>`) are redirected internally after auth
+- external tools use POST handoff (no `access_token` in URL query)
+
+## Tool Integration Framework
+
+Integrated tools are managed through `public.tools` registry and opened from `/dashboard/tools`.
+
+- Local tools:
+  - Keep `path` as `/tools/<slug>`
+  - Implement page at `apps/dashboard/src/app/tools/<slug>/page.tsx`
+- External tools:
+  - Keep `path` as absolute URL `https://...`
+  - Configure handoff path with `DASHBOARD_TOOL_HANDOFF_PATHS`
+  - Keep `DASHBOARD_TOOL_ALLOW_LEGACY_QUERY_TOKEN=false` in production
+
+Reference onboarding guide:
+
+- `doc/TOOL_INTEGRATION_GUIDE.md`
 
 ## Database And Migration Workflow
 
@@ -285,6 +314,7 @@ Configure Supabase Auth redirect URLs to your hosted dashboard origin, not local
 - Internal detailed state: `AI.md`
 - Release history: `CHANGELOG.md`
 - Engineering rules: `RULES.md`
+- Tool onboarding and auth contract: `doc/TOOL_INTEGRATION_GUIDE.md`
 - Supabase migration guide: `packages/supabase/README.md`
 - Unified migration runbook: `packages/supabase/UNIFIED_MIGRATION_RUNBOOK.md`
 

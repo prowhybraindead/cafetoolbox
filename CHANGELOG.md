@@ -27,6 +27,41 @@ See [RULES.md](RULES.md#5-versioning-rules) for complete versioning rules.
 
 ---
 
+## [0.4.15-beta] - 2026-05-16
+
+- Hardened dashboard-to-Convertube auth transport for relaunch:
+  - Replaced external launch query-token redirect with auto-submit `POST` handoff to `/auth/launch`.
+  - Added no-store/no-referrer headers on launch handoff response.
+  - Added Convertube `POST /auth/launch` token bootstrap endpoint with clean redirect.
+  - Switched dashboard Convertube proxy routes to `Authorization: Bearer` and removed `access_token` query transport.
+  - Added multi-tool launch compatibility guard via per-tool handoff path config and explicit legacy-query fallback flag.
+- Hardened Convertube runtime security defaults:
+  - `CONVERTUBE_AUTO_INSTALL_PY_DEPS` now defaults to `false`.
+  - Added production fail-fast checks for weak/missing `DASHBOARD_TOOL_SHARED_SECRET`.
+  - Added production fail-fast block when `CONVERTUBE_AUTO_INSTALL_PY_DEPS=true`.
+  - Cookie issuance now enforces `Secure` in production/HTTPS contexts.
+  - Added `CONVERTUBE_ALLOW_QUERY_TOKEN_FALLBACK=false` compatibility flag (default off).
+- Updated docs and env examples to reflect secure defaults and new launch flow.
+- Added dashboard tool integration framework updates:
+  - New shared helper layer for tool access policy (`requireDashboardUser`, launchable-tool checks by id/slug).
+  - `/api/tools/launch` and Convertube proxy auth now share the same tool status/login policy.
+  - `/tools/*` layout now enforces login redirect at layout level.
+  - Admin tools form now documents local path (`/tools/<slug>`) vs external URL (`https://...`) path conventions.
+  - Added `doc/TOOL_INTEGRATION_GUIDE.md` for local/external onboarding and auth checklist.
+  - Synced top-level docs (`README.md`, `AI.md`) with the new launch and integration contract.
+
+---
+
+## [0.4.14-beta] - 2026-04-16
+
+- Updated internal engineering governance documentation:
+  - Added stronger error-handling rules to `RULES.md` so implementation stops on errors, reports the issue first, and waits for approval before fixing behavior-changing problems.
+  - Added documentation sync rules so completed work must be summarized and reflected in `CHANGELOG.md` and `AI.md`.
+  - Clarified version bump guidance for patch-level hotfixes versus larger feature updates.
+  - Reorganized `AI.md` and `DESIGN.md` into clearer handbook-style references for developers and AI agents.
+
+---
+
 ## [0.4.13-beta] - 2026-04-15
 
 - Completed Convertube split milestone for dashboard-side integration:

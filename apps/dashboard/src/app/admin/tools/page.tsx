@@ -354,9 +354,12 @@ export default function AdminToolsPage() {
                   <input
                     value={form.path}
                     onChange={(e) => updateForm('path', e.target.value)}
-                    placeholder="/tools/json-formatter (tự động nếu trống)"
+                    placeholder="/tools/json-formatter hoặc https://tool.example.com"
                     className="w-full px-3 py-2 border border-white/60 bg-white/55 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-neon/50"
                   />
+                  <p className="mt-1 text-xs text-charcoal">
+                    Tool local: <code>/tools/&lt;slug&gt;</code>. Tool external: URL đầy đủ <code>https://...</code>
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-charcoal mb-1.5">Icon</label>

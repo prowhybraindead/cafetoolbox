@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getToolAccessContext, parseSafeJson } from "../_lib";
+import { buildToolAuthHeaders, getToolAccessContext, parseSafeJson } from "../_lib";
 
 export async function POST(request: Request) {
   try {
@@ -12,11 +12,10 @@ export async function POST(request: Request) {
     const payload = { url: body.url ?? "" };
 
     const target = new URL(`${context.baseUrl}/api/info`);
-    target.searchParams.set("access_token", context.accessToken);
 
     const upstream = await fetch(target, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildToolAuthHeaders(context.accessToken, { "Content-Type": "application/json" }),
       cache: "no-store",
       body: JSON.stringify(payload),
     });
